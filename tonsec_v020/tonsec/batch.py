@@ -94,7 +94,9 @@ def discover_projects(root):
 
         # Source directories are not standalone projects.
         # Their children must still be inspected for nested projects.
-        if is_project(directory):
+        # Conventional source directories belong to their parent.
+        # Still descend into them to discover nested projects.
+        if directory.name not in source_roots and is_project(directory):
             found.append(directory.resolve())
 
         for child in child_directories(directory):
