@@ -8,6 +8,7 @@ from .engine import scan, write_report
 from .compare import compare
 from .chain_audit import audit_wallet, write_chain_report
 from .batch import audit_batch
+from .orchestrator import run_collection
 
 
 def main():
@@ -37,6 +38,10 @@ def main():
     batch_parser = sub.add_parser("batch")
     batch_parser.add_argument("target")
     batch_parser.add_argument("--out", required=True)
+
+    run_parser = sub.add_parser("run")
+    run_parser.add_argument("target")
+    run_parser.add_argument("--out", required=True)
 
     args = parser.parse_args()
 
@@ -93,6 +98,11 @@ def main():
 
         elif args.cmd == "batch":
             report = audit_batch(args.target, args.out)
+            print(report["output_dir"])
+            print(json.dumps(report["summary"], indent=2, ensure_ascii=False))
+
+        elif args.cmd == "run":
+            report = run_collection(args.target, args.out)
             print(report["output_dir"])
             print(json.dumps(report["summary"], indent=2, ensure_ascii=False))
 
