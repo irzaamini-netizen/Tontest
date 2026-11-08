@@ -508,6 +508,7 @@ def audit_wallet(address, enable_tonapi=False):
             "partial_endpoints": partial_endpoints,
             "available_endpoints": available_endpoints,
             "total_endpoints": total_endpoints,
+            "endpoint_summary": endpoint_results,
             "status": (
                 "COMPLETE"
                 if successful_endpoints == total_endpoints
@@ -602,8 +603,45 @@ def write_chain_report(report, outdir):
         + str(len(report["account_observations"])),
         "- Conflicting fields: " + str(len(report["conflicts"])),
         "",
-        "## Account observations",
+        "## Collection coverage",
     ]
+
+    endpoint_summary = report.get("collection", {}).get(
+        "endpoint_summary", {}
+    )
+    if not endpoint_summary:
+        summary.append("Endpoint-level details unavailable.")
+    for provider, endpoints in endpoint_summary.items():
+        summary += ["", "### " + str(provider)]
+        for endpoint, details in endpoints.items():
+            summary += [
+                "",
+                "#### " + str(endpoint),
+                "- State: " + str(details.get("state", "UNKNOWN")),
+                "- HTTP status: " + str(details.get("http_status")),
+            ]
+            pagination = details.get("pagination")
+            if isinstance(pagination, dict):
+                summary += [
+                    "- Pagination complete: " + str(pagination.get("complete")),
+                    "- Pagination pages fetched: " + str(pagination.get("pages_fetched")),
+                    "- Pagination page size: " + str(pagination.get("page_size")),
+                    "- Pagination max pages: " + str(pagination.get("max_pages")),
+                    "- Pagination records fetched: " + str(pagination.get("fetched_count")),
+                    "- Pagination unique records returned: " + str(pagination.get("returned_count")),
+                    "- Pagination duplicates removed: " + str(pagination.get("duplicate_count")),
+                    "- Pagination stop reason: " + str(pagination.get("stop_reason")),
+                    "- Pagination consistency: " + str(pagination.get("consistency")),
+                    "- Pagination snapshot stable: " + str(pagination.get("snapshot_stable")),
+                    "- Pagination minimum interval seconds: " + str(pagination.get("min_interval")),
+                ]
+                partial_error = pagination.get("partial_error")
+                if isinstance(partial_error, dict):
+                    summary.append(
+                        "- Pagination partial error: "
+                        + json.dumps(partial_error, ensure_ascii=False)
+                    )
+    summary += ["", "## Account observations"]
 
     if not report["account_observations"]:
         summary.append("No account observation was successfully collected.")
@@ -645,6 +683,11 @@ def write_chain_report(report, outdir):
         "- Transaction counts: "
         + json.dumps(
             report["activity"]["transaction_counts"],
+            ensure_ascii=False,
+        ),
+        "- Transaction collection status: "
+        + json.dumps(
+            report["activity"]["transaction_collection_status"],
             ensure_ascii=False,
         ),
         "- TON Center trace count: "

@@ -1,4 +1,6 @@
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from tonsec.chain_audit import (
@@ -9,10 +11,70 @@ from tonsec.chain_audit import (
     analyze_transactions,
     _correlate_messages,
     audit_wallet,
+    write_chain_report,
 )
 
 
 class ChainAuditTests(unittest.TestCase):
+
+
+    def test_partial_pagination_survives_final_report(self):
+        pagination = {
+            "enabled": True,
+            "complete": False,
+            "pages_fetched": 2,
+            "page_size": 1000,
+            "max_pages": 2,
+            "next_offset": 2000,
+            "fetched_count": 2000,
+            "returned_count": 1998,
+            "duplicate_count": 2,
+            "stop_reason": "MAX_PAGES_REACHED",
+            "snapshot_stable": False,
+            "consistency": "OFFSET_BASED_NON_SNAPSHOT",
+            "min_interval": 1.1,
+        }
+        collected = {
+            "transactions": {
+                "ok": True,
+                "http_status": 200,
+                "partial": True,
+                "data": {"transactions": [{"hash": "fixture-tx"}]},
+                "pagination": pagination,
+            }
+        }
+
+        with patch("tonsec.chain_audit.ToncenterProvider") as center:
+            center.return_value.collect.return_value = collected
+            report = audit_wallet("0:" + ("a" * 64))
+
+        self.assertEqual(report["collection"]["status"], "PARTIAL")
+        endpoint = report["collection"]["endpoint_summary"]
+        self.assertEqual(
+            endpoint["toncenter"]["transactions"]["pagination"],
+            pagination,
+        )
+        self.assertEqual(
+            report["transaction_analysis"]["provider_collection"]
+            ["toncenter"]["status"],
+            "PARTIAL_RECORDS_RETURNED",
+        )
+
+        with tempfile.TemporaryDirectory() as outdir:
+            write_chain_report(report, outdir)
+            markdown = (
+                Path(outdir) / "chain_audit.md"
+            ).read_text(encoding="utf-8")
+
+        self.assertIn("- Pagination complete: False", markdown)
+        self.assertIn(
+            "- Pagination stop reason: MAX_PAGES_REACHED", markdown
+        )
+        self.assertIn(
+            "- Pagination consistency: OFFSET_BASED_NON_SNAPSHOT",
+            markdown,
+        )
+        self.assertIn("PARTIAL_RECORDS_RETURNED", markdown)
 
     def test_default_audit_disables_tonapi(self):
         collected = {"transactions": {
