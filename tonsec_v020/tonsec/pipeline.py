@@ -4,12 +4,20 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 
-def scan_project(root):
+def scan_project(root, exclude_roots=None):
     from .engine import EXTS, SKIP, _analyze_source
 
     rp = Path(root).expanduser().resolve()
     if not rp.is_dir():
         raise ValueError(f"Not a directory: {rp}")
+
+    excluded_roots = {
+        Path(item).expanduser().resolve()
+        for item in (exclude_roots or [])
+    }
+
+    if any(rp == item for item in excluded_roots):
+        raise ValueError("Project root cannot exclude itself.")
 
     findings = []
     records = []
@@ -20,7 +28,12 @@ def scan_project(root):
     }
 
     for base, dirs, names in os.walk(rp):
-        dirs[:] = sorted(d for d in dirs if d not in SKIP)
+        current = Path(base).resolve()
+        dirs[:] = sorted(
+            d for d in dirs
+            if d not in SKIP
+            and (current / d).resolve() not in excluded_roots
+        )
 
         for name in sorted(names):
             file_path = Path(base) / name

@@ -73,10 +73,10 @@ class BatchTests(unittest.TestCase):
             from tonsec import batch
             original = batch.scan_project
 
-            def controlled(project):
+            def controlled(project, **kwargs):
                 if Path(project).name == "alpha":
                     raise RuntimeError("controlled test failure")
-                return original(project)
+                return original(project, **kwargs)
 
             with patch("tonsec.batch.scan_project", side_effect=controlled):
                 report = audit_batch(root, output)
@@ -110,10 +110,6 @@ class BatchTests(unittest.TestCase):
             self.make_project(root, "alpha")
             with self.assertRaises(ValueError):
                 audit_batch(root, root / "reports")
-
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class TestRecursiveTonProjectDiscovery(unittest.TestCase):
@@ -180,3 +176,100 @@ class TestRecursiveTonProjectDiscovery(unittest.TestCase):
             contract.mkdir()
             (contract / "main.tolk").write_text("contract", encoding="utf-8")
             self.assertEqual(discover_projects(root), [root.resolve()])
+
+
+    def test_discovers_nested_project_inside_parent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            parent = root / "parent"
+            child = parent / "tools" / "child"
+
+            parent_contracts = parent / "contracts"
+            child_contracts = child / "contracts"
+
+            parent_contracts.mkdir(parents=True)
+            child_contracts.mkdir(parents=True)
+
+            (parent_contracts / "main.tolk").write_text(
+                "contract Parent {}",
+                encoding="utf-8",
+            )
+            (child_contracts / "child.fc").write_text(
+                "() main() { return (); }",
+                encoding="utf-8",
+            )
+
+            found = discover_projects(root)
+
+            self.assertEqual(
+                set(found),
+                {parent.resolve(), child.resolve()},
+            )
+
+    def test_discovers_func_extension(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            project = root / "func-project"
+            contracts = project / "contracts"
+            contracts.mkdir(parents=True)
+
+            (contracts / "wallet.func").write_text(
+                "source",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                discover_projects(root),
+                [project.resolve()],
+            )
+
+    def test_nested_project_files_are_not_scanned_twice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "collection"
+            parent = root / "parent"
+            child = parent / "tools" / "child"
+
+            (parent / "contracts").mkdir(parents=True)
+            (child / "contracts").mkdir(parents=True)
+
+            (parent / "contracts" / "main.tolk").write_text(
+                "contract Parent {}",
+                encoding="utf-8",
+            )
+            (child / "contracts" / "child.fc").write_text(
+                "() main() { return (); }",
+                encoding="utf-8",
+            )
+
+            output = Path(tmp) / "reports"
+            report = audit_batch(root, output)
+
+            self.assertEqual(report["summary"]["total_projects"], 2)
+            self.assertEqual(report["summary"]["projects_succeeded"], 2)
+
+            raw_reports = sorted(
+                (output / "projects").glob("*/ton_raw.json")
+            )
+            self.assertEqual(len(raw_reports), 2)
+
+            scanned_paths = []
+            for report_path in raw_reports:
+                raw = json.loads(report_path.read_text(encoding="utf-8"))
+                scanned_paths.extend(
+                    (raw["target"], item["path"])
+                    for item in raw["files"]
+                )
+
+            self.assertEqual(len(scanned_paths), 2)
+            self.assertEqual(
+                {Path(target).resolve() for target, _ in scanned_paths},
+                {parent.resolve(), child.resolve()},
+            )
+            self.assertEqual(
+                {path for _, path in scanned_paths},
+                {"contracts/main.tolk", "contracts/child.fc"},
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -25,13 +25,11 @@ def _has_source_files(root, recursive=True):
 
 def discover_projects(root):
     """
-    Discover TON project roots recursively without counting nested source
-    directories as separate projects.
+    Discover parent and nested TON projects.
 
-    A project is identified by TON source files (.fc, .tolk, .tact)
-    directly in its root or inside a conventional source directory.
-    Generic text files and hidden tool/library directories are not evidence
-    of a TON project.
+    Conventional source directories are not projects by themselves,
+    but their child directories are still traversed to find nested
+    projects. Nested project roots are returned separately.
     """
     import os
     from pathlib import Path
@@ -44,35 +42,8 @@ def discover_projects(root):
         ".acton", ".git", ".github", ".venv", "venv",
         "node_modules", "__pycache__", "dist", "build"
     }
-    extensions = {".fc", ".tolk", ".tact"}
+    extensions = {".fc", ".func", ".tolk", ".tact"}
     source_roots = {"contracts", "contract", "sources", "src"}
-
-    def has_sources(directory):
-        directory = Path(directory)
-        if not directory.is_dir():
-            return False
-        for current, dirs, files in os.walk(directory):
-            dirs[:] = sorted(
-                d for d in dirs
-                if d not in ignored and not d.startswith(".")
-            )
-            if any(Path(name).suffix.lower() in extensions for name in files):
-                return True
-        return False
-
-    def is_project(directory):
-        directory = Path(directory)
-
-        if any(Path(name).suffix.lower() in extensions
-               for name in (p.name for p in directory.iterdir() if p.is_file())):
-            return True
-
-        for name in source_roots:
-            candidate = directory / name
-            if has_sources(candidate):
-                return True
-
-        return False
 
     def child_directories(directory):
         try:
@@ -85,33 +56,64 @@ def discover_projects(root):
         except OSError:
             return []
 
+    def has_sources(directory):
+        if not directory.is_dir():
+            return False
+
+        for current, dirs, files in os.walk(directory):
+            dirs[:] = sorted(
+                d for d in dirs
+                if d not in ignored and not d.startswith(".")
+            )
+            if any(
+                Path(name).suffix.lower() in extensions
+                for name in files
+            ):
+                return True
+        return False
+
+    def is_project(directory):
+        try:
+            if any(
+                p.is_file() and p.suffix.lower() in extensions
+                for p in directory.iterdir()
+            ):
+                return True
+        except OSError:
+            return False
+
+        return any(
+            has_sources(directory / name)
+            for name in source_roots
+        )
+
+    found = []
+
     def descend(directory):
         directory = Path(directory)
-        # Source directories belong to their parent project;
-        # never report contracts/src/sources as standalone projects.
-        if directory.name in source_roots:
-            return []
+
+        # Source directories are not standalone projects.
+        # Their children must still be inspected for nested projects.
         if is_project(directory):
-            return [directory]
+            found.append(directory.resolve())
 
-        found = []
         for child in child_directories(directory):
-            found.extend(descend(child))
-        return found
+            descend(child)
 
-    # Prefer projects below a collection root; only use root itself
-    # when no child project was discovered.
-    found = []
     for child in child_directories(root):
-        found.extend(descend(child))
+        descend(child)
 
-    if found:
-        return sorted(set(p.resolve() for p in found), key=lambda p: str(p))
-
+    # The input itself can also be a project, even when it contains
+    # nested projects. Keep both roots in that case.
     if is_project(root):
-        return [root]
+        found.append(root)
 
-    raise ValueError(f"No TON source projects found under: {root}")
+    found = sorted(set(found), key=lambda p: str(p))
+
+    if not found:
+        raise ValueError(f"No TON source projects found under: {root}")
+
+    return found
 
 
 def audit_batch(root, outdir):
@@ -151,7 +153,15 @@ def audit_batch(root, outdir):
         }
 
         try:
-            report = scan_project(project)
+            nested_projects = [
+                candidate
+                for candidate in projects
+                if project in candidate.parents
+            ]
+            report = scan_project(
+                project,
+                exclude_roots=nested_projects,
+            )
             destination = project_output / name
             write_report(report, str(destination))
 
