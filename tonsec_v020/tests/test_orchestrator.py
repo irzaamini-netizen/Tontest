@@ -37,3 +37,54 @@ class UnifiedRunTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_missing_project_report_marks_aggregation_partial(self):
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "input"
+            root.mkdir()
+            output = Path(tmp) / "reports"
+            output.mkdir()
+
+            fake_batch = {
+                "output_dir": str(output),
+                "input": str(root),
+                "summary": {
+                    "total_projects": 1,
+                    "files_analyzed": 1,
+                    "findings_total": 0,
+                    "functions_extracted": 1,
+                    "projects_succeeded": 1,
+                    "projects_failed": 0,
+                    "projects_partial": 0,
+                },
+                "projects": [{
+                    "name": "alpha",
+                    "path": str(root / "alpha"),
+                    "status": "SUCCESS",
+                    "report_dir": str(output / "missing-project-report"),
+                }],
+            }
+
+            with patch(
+                "tonsec.orchestrator.audit_batch",
+                return_value=fake_batch,
+            ):
+                report = run_collection(root, output)
+
+            statuses = {
+                item["name"]: item["status"]
+                for item in report["stages"]
+            }
+            self.assertEqual(statuses["report_aggregation"], "PARTIAL")
+            self.assertEqual(statuses["static_source_analysis"], "PARTIAL")
+            self.assertEqual(report["summary"]["project_reports_expected"], 1)
+            self.assertEqual(report["summary"]["project_reports_read"], 0)
+            self.assertEqual(report["summary"]["project_reports_missing"], 1)
+            self.assertEqual(
+                report["projects"][0]["aggregation_status"],
+                "MISSING",
+            )
+            self.assertEqual(len(report["aggregation_errors"]), 1)
+

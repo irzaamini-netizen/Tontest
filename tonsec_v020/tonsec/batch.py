@@ -198,7 +198,7 @@ def audit_batch(root, outdir):
         },
         "projects": results,
         "limitations": [
-            "Discovery checks the input directory itself first; otherwise only its immediate child directories.",
+            "Discovery recursively checks eligible child directories and uses the input directory itself as a fallback project root.",
             "Static heuristic findings do not prove exploitability.",
             "A failed project does not stop the remaining projects.",
             "This batch command performs source scanning, not on-chain wallet auditing.",
