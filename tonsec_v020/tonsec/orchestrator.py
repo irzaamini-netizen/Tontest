@@ -17,6 +17,47 @@ LANGUAGES = {
 }
 
 
+def _validate_raw_report(raw):
+    """Validate the structural fields consumed by unified aggregation."""
+    if not isinstance(raw, dict):
+        raise ValueError("Report root is not an object.")
+    if raw.get("schema") != "tonsec.raw-report.v1":
+        raise ValueError("Unexpected or missing report schema.")
+
+    findings = raw.get("findings")
+    files = raw.get("files")
+
+    if not isinstance(findings, list):
+        raise ValueError("Report findings field is not a list.")
+    if not isinstance(files, list):
+        raise ValueError("Report files field is not a list.")
+
+    for index, finding in enumerate(findings):
+        if not isinstance(finding, dict):
+            raise ValueError(f"Finding at index {index} is not an object.")
+
+    for index, record in enumerate(files):
+        if not isinstance(record, dict):
+            raise ValueError(f"File record at index {index} is not an object.")
+
+        path = record.get("path")
+        if not isinstance(path, str) or not path:
+            raise ValueError(f"File record at index {index} has invalid path.")
+
+        diagnostics = record.get("diagnostics")
+        if not isinstance(diagnostics, list):
+            raise ValueError(
+                f"File record at index {index} diagnostics is not a list."
+            )
+
+        for diagnostic_index, diagnostic in enumerate(diagnostics):
+            if not isinstance(diagnostic, dict):
+                raise ValueError(
+                    f"Diagnostic at file index {index}, "
+                    f"item {diagnostic_index} is not an object."
+                )
+
+
 def run_collection(root, outdir):
     batch = audit_batch(root, outdir)
     output = Path(batch["output_dir"])
@@ -65,14 +106,7 @@ def run_collection(root, outdir):
 
         try:
             raw = json.loads(raw_path.read_text(encoding="utf-8"))
-            if not isinstance(raw, dict):
-                raise ValueError("Report root is not an object.")
-            if raw.get("schema") != "tonsec.raw-report.v1":
-                raise ValueError("Unexpected or missing report schema.")
-            if not isinstance(raw.get("findings"), list):
-                raise ValueError("Report findings field is not a list.")
-            if not isinstance(raw.get("files"), list):
-                raise ValueError("Report files field is not a list.")
+            _validate_raw_report(raw)
         except (OSError, ValueError, TypeError) as exc:
             error = f"{type(exc).__name__}: {exc}"
             project["aggregation_status"] = "INVALID"

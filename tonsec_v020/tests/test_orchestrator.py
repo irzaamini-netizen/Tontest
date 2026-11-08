@@ -128,5 +128,52 @@ class UnifiedRunTests(unittest.TestCase):
             self.assertEqual(len(report["aggregation_errors"]), 1)
 
 
+    def test_malformed_nested_diagnostics_marks_report_invalid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "input"
+            root.mkdir()
+            output = Path(tmp) / "reports"
+            output.mkdir()
+            project_report = output / "alpha"
+            project_report.mkdir()
+
+            (project_report / "ton_raw.json").write_text(
+                json.dumps({
+                    "schema": "tonsec.raw-report.v1",
+                    "findings": [],
+                    "files": [{
+                        "path": "contracts/wallet.tolk",
+                        "diagnostics": {"unexpected": "object"},
+                    }],
+                }),
+                encoding="utf-8",
+            )
+
+            fake_batch = self._fake_batch(
+                root, output, report_dir=project_report
+            )
+
+            with patch(
+                "tonsec.orchestrator.audit_batch",
+                return_value=fake_batch,
+            ):
+                report = run_collection(root, output)
+
+            statuses = {
+                item["name"]: item["status"]
+                for item in report["stages"]
+            }
+            self.assertEqual(statuses["report_aggregation"], "PARTIAL")
+            self.assertEqual(report["summary"]["project_reports_read"], 0)
+            self.assertEqual(report["summary"]["project_reports_missing"], 1)
+            self.assertEqual(
+                report["projects"][0]["aggregation_status"], "INVALID"
+            )
+            self.assertIn(
+                "diagnostics is not a list",
+                report["projects"][0]["aggregation_error"],
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
