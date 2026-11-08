@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=65"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ton-security-engine"
+version = "0.2.0"
+requires-python = ">=3.9"
+
+[tool.setuptools.packages.find]
+include = ["tonsec*"]
