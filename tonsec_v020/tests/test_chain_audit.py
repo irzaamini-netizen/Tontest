@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from tonsec.chain_audit import (
     validate_address,
@@ -7,10 +8,55 @@ from tonsec.chain_audit import (
     _endpoint_state,
     analyze_transactions,
     _correlate_messages,
+    audit_wallet,
 )
 
 
 class ChainAuditTests(unittest.TestCase):
+
+    def test_default_audit_disables_tonapi(self):
+        collected = {"transactions": {
+            "ok": True,
+            "data": {"transactions": []},
+        }}
+        with patch("tonsec.chain_audit.ToncenterProvider") as center:
+            with patch("tonsec.chain_audit.TonapiProvider") as api:
+                center.return_value.collect.return_value = collected
+                report = audit_wallet("0:" + ("a" * 64))
+
+        api.assert_not_called()
+        center.return_value.collect.assert_called_once()
+        self.assertEqual(report["collection"]["providers"], ["toncenter"])
+        self.assertIsNone(report["activity"]["transaction_counts"]["tonapi"])
+        self.assertEqual(
+            report["activity"]["transaction_collection_status"]["tonapi"],
+            "DISABLED",
+        )
+        self.assertEqual(report["collection"]["total_endpoints"], 1)
+
+    def test_explicit_flag_enables_tonapi(self):
+        collected = {"transactions": {
+            "ok": True,
+            "data": {"transactions": []},
+        }}
+        with patch("tonsec.chain_audit.ToncenterProvider") as center:
+            with patch("tonsec.chain_audit.TonapiProvider") as api:
+                center.return_value.collect.return_value = collected
+                api.return_value.collect.return_value = collected
+                report = audit_wallet(
+                    "0:" + ("a" * 64), enable_tonapi=True
+                )
+
+        api.assert_called_once_with()
+        api.return_value.collect.assert_called_once()
+        self.assertEqual(
+            report["collection"]["providers"], ["toncenter", "tonapi"]
+        )
+        self.assertEqual(report["collection"]["total_endpoints"], 2)
+        self.assertEqual(
+            report["activity"]["transaction_collection_status"]["tonapi"],
+            "RECORDS_RETURNED",
+        )
 
     def test_accepts_raw_address(self):
         value = "0:" + ("a" * 64)

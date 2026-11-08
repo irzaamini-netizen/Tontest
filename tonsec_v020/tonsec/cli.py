@@ -28,6 +28,11 @@ def main():
     audit_parser = sub.add_parser("audit")
     audit_parser.add_argument("target")
     audit_parser.add_argument("--out")
+    audit_parser.add_argument(
+        "--enable-tonapi",
+        action="store_true",
+        help="Enable optional TonAPI collection (disabled by default)",
+    )
 
     batch_parser = sub.add_parser("batch")
     batch_parser.add_argument("target")
@@ -73,7 +78,10 @@ def main():
                 stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
                 output = str(Path.home() / ("tonsec-audit-" + stamp))
 
-            report = audit_wallet(args.target)
+            report = audit_wallet(
+                args.target,
+                enable_tonapi=args.enable_tonapi,
+            )
             print(write_chain_report(report, output))
             print(json.dumps({
                 "collection": report["collection"],

@@ -406,18 +406,17 @@ def analyze_transactions(provider_results):
     }
 
 
-def audit_wallet(address):
+def audit_wallet(address, enable_tonapi=False):
     address = validate_address(address)
 
-    providers = {
-        "toncenter": ToncenterProvider(),
-        "tonapi": TonapiProvider(),
-    }
+    providers = {"toncenter": ToncenterProvider()}
+    if enable_tonapi:
+        providers["tonapi"] = TonapiProvider()
 
     provider_results = {}
 
     jobs = {}
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor(max_workers=len(providers)) as executor:
         for name, provider in providers.items():
             jobs[executor.submit(provider.collect, address)] = name
 
@@ -446,9 +445,12 @@ def audit_wallet(address):
             _successful_data(center.get("transactions")),
             ("transactions",),
         ),
-        "tonapi": extract_count(
-            _successful_data(api.get("transactions")),
-            ("transactions",),
+        "tonapi": (
+            extract_count(
+                _successful_data(api.get("transactions")),
+                ("transactions",),
+            )
+            if enable_tonapi else None
         ),
     }
 
@@ -478,7 +480,7 @@ def audit_wallet(address):
         },
         "mode": "READ_ONLY_CHAIN_AUDIT",
         "collection": {
-            "providers": ["toncenter", "tonapi"],
+            "providers": list(providers),
             "successful_endpoints": successful_endpoints,
             "total_endpoints": total_endpoints,
             "status": (
@@ -500,7 +502,9 @@ def audit_wallet(address):
                     else _endpoint_state(center.get("transactions", {}))
                 ),
                 "tonapi": (
-                    "RECORDS_RETURNED"
+                    "DISABLED"
+                    if not enable_tonapi
+                    else "RECORDS_RETURNED"
                     if tx_counts["tonapi"] is not None
                     else _endpoint_state(api.get("transactions", {}))
                 ),
