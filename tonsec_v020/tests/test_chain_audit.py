@@ -37,7 +37,7 @@ class ChainAuditTests(unittest.TestCase):
     def test_explicit_flag_enables_tonapi(self):
         collected = {"transactions": {
             "ok": True,
-            "data": {"transactions": []},
+            "data": {"transactions": [{"hash": "fixture-tx"}]},
         }}
         with patch("tonsec.chain_audit.ToncenterProvider") as center:
             with patch("tonsec.chain_audit.TonapiProvider") as api:
@@ -208,6 +208,116 @@ class ChainAuditTests(unittest.TestCase):
         self.assertEqual(
             result["provider_collection"]["toncenter"]["status"],
             "RATE_LIMITED",
+        )
+
+
+class ToncenterPaginationTests(unittest.TestCase):
+
+    @staticmethod
+    def page(items):
+        return {"ok": True, "http_status": 200,
+                "data": {"transactions": items}}
+
+    def provider(self):
+        from tonsec.providers.toncenter import ToncenterProvider
+        return ToncenterProvider(min_interval=0)
+
+    def test_paginates_until_short_final_page(self):
+        provider = self.provider()
+        with patch.object(provider, "_get", side_effect=[
+            self.page([{"hash": "a", "lt": "30"},
+                       {"hash": "b", "lt": "20"}]),
+            self.page([{"hash": "c", "lt": "10"}]),
+        ]) as mocked:
+            result = provider.transactions("test", limit=2)
+
+        self.assertTrue(result["pagination"]["complete"])
+        self.assertEqual(result["pagination"]["pages_fetched"], 2)
+        self.assertEqual(result["pagination"]["returned_count"], 3)
+        self.assertEqual(mocked.call_args_list[0].kwargs["sort"], "desc")
+        self.assertEqual(mocked.call_args_list[1].kwargs["offset"], 2)
+
+    def test_empty_first_page_is_complete(self):
+        provider = self.provider()
+        with patch.object(provider, "_get", return_value=self.page([])):
+            result = provider.transactions("test", limit=5)
+        self.assertTrue(result["pagination"]["complete"])
+        self.assertEqual(result["pagination"]["stop_reason"], "EMPTY_PAGE")
+
+    def test_max_pages_marks_incomplete(self):
+        provider = self.provider()
+        full = self.page([{"hash": "a"}, {"hash": "b"}])
+        with patch.object(provider, "_get", return_value=full):
+            result = provider.transactions("test", limit=2, max_pages=2)
+        self.assertFalse(result["pagination"]["complete"])
+        self.assertEqual(result["pagination"]["stop_reason"], "MAX_PAGES_REACHED")
+
+    def test_429_preserves_successful_records_as_partial(self):
+        provider = self.provider()
+        with patch.object(provider, "_get", side_effect=[
+            self.page([{"hash": "a"}, {"hash": "b"}]),
+            {"ok": False, "http_status": 429, "error": "rate limited"},
+        ]):
+            result = provider.transactions("test", limit=2)
+
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["partial"])
+        self.assertFalse(result["pagination"]["complete"])
+        self.assertEqual(result["pagination"]["partial_error"]["http_status"], 429)
+        self.assertEqual(len(result["data"]["transactions"]), 2)
+
+    def test_duplicate_hashes_are_removed(self):
+        provider = self.provider()
+        with patch.object(provider, "_get", side_effect=[
+            self.page([{"hash": "a"}, {"hash": "b"}]),
+            self.page([{"hash": "a"}, {"hash": "c"}]),
+            self.page([]),
+        ]):
+            result = provider.transactions("test", limit=2)
+
+        self.assertEqual(result["pagination"]["fetched_count"], 4)
+        self.assertEqual(result["pagination"]["returned_count"], 3)
+        self.assertEqual(result["pagination"]["duplicate_count"], 1)
+
+    def test_invalid_parameters_are_rejected(self):
+        provider = self.provider()
+        with self.assertRaises(ValueError):
+            provider.transactions("test", limit=1001)
+        with self.assertRaises(ValueError):
+            provider.transactions("test", limit=2, max_pages=0)
+
+    def test_partial_endpoint_is_not_success(self):
+        from tonsec.chain_audit import _endpoint_state, _collection_label
+        result = {"ok": True, "pagination": {"complete": False}}
+        self.assertEqual(_endpoint_state(result), "PARTIAL")
+        self.assertEqual(_collection_label(result, True), "PARTIAL_RECORDS_RETURNED")
+
+    def test_rate_interval_can_be_configured_by_environment(self):
+        from tonsec.providers.toncenter import ToncenterProvider
+        with patch.dict("os.environ", {"TONCENTER_MIN_INTERVAL": "0.25"}):
+            provider = ToncenterProvider()
+        self.assertEqual(provider.min_interval, 0.25)
+
+    def test_rate_limiter_waits_between_requests(self):
+        from tonsec.providers import toncenter
+        provider = toncenter.ToncenterProvider(min_interval=1.1)
+        with patch.object(toncenter, "request_json", return_value={"ok": True}):
+            with patch.object(toncenter.time, "monotonic",
+                              side_effect=[100.0, 100.2, 101.3]):
+                with patch.object(toncenter.time, "sleep") as sleep:
+                    provider._get("accountStates", "test")
+                    provider._get("walletStates", "test")
+        sleep.assert_called_once()
+        self.assertAlmostEqual(sleep.call_args.args[0], 0.9, places=5)
+
+    def test_offset_pagination_reports_non_snapshot_consistency(self):
+        provider = self.provider()
+        with patch.object(provider, "_get", return_value=self.page([])):
+            result = provider.transactions("test", limit=2)
+        self.assertFalse(result["pagination"]["snapshot_stable"])
+        self.assertEqual(
+            result["pagination"]["consistency"],
+            "OFFSET_BASED_NON_SNAPSHOT",
         )
 
 

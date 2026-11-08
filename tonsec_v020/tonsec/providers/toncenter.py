@@ -1,3 +1,7 @@
+import math
+import os
+import time
+
 from .common import encode_address, request_json
 
 
@@ -9,15 +13,45 @@ MAX_TRANSACTION_PAGES = 100
 class ToncenterProvider:
     name = "toncenter"
 
-    def __init__(self, timeout=18):
+    def __init__(self, timeout=18, min_interval=None):
         self.timeout = timeout
+        if min_interval is None:
+            raw_interval = os.environ.get("TONCENTER_MIN_INTERVAL", "1.1")
+            try:
+                min_interval = float(raw_interval)
+            except (TypeError, ValueError):
+                raise ValueError("TONCENTER_MIN_INTERVAL must be numeric")
+
+        if (
+            isinstance(min_interval, bool)
+            or not isinstance(min_interval, (int, float))
+            or not math.isfinite(min_interval)
+            or min_interval < 0
+        ):
+            raise ValueError("min_interval must be a finite non-negative number")
+
+        self.min_interval = float(min_interval)
+        self._last_request_at = None
+
+    def _wait_for_rate_limit(self):
+        if self._last_request_at is None or self.min_interval == 0:
+            return
+
+        elapsed = time.monotonic() - self._last_request_at
+        remaining = self.min_interval - elapsed
+        if remaining > 0:
+            time.sleep(remaining)
 
     def _get(self, endpoint, address, **params):
+        from urllib.parse import urlencode
+
+        self._wait_for_rate_limit()
         query = {"address": address}
         query.update(params)
-        from urllib.parse import urlencode
         url = BASE + "/" + endpoint + "?" + urlencode(query)
-        return request_json(url, self.timeout)
+        result = request_json(url, self.timeout)
+        self._last_request_at = time.monotonic()
+        return result
 
     def account_states(self, address):
         return self._get("accountStates", address)
@@ -92,6 +126,7 @@ class ToncenterProvider:
                 account=address,
                 limit=limit,
                 offset=offset,
+                sort="desc",
             )
 
             if first_result is None:
@@ -170,6 +205,10 @@ class ToncenterProvider:
             "returned_count": len(transactions),
             "duplicate_count": duplicate_count,
             "stop_reason": stop_reason,
+            "snapshot_stable": False,
+            "consistency": "OFFSET_BASED_NON_SNAPSHOT",
+            "sort": "desc",
+            "min_interval": self.min_interval,
         }
 
         if partial_error is not None:
