@@ -129,12 +129,27 @@ def _conflicts(observations):
 
 def _endpoint_state(result):
     if result.get("ok"):
+        pagination = result.get("pagination")
+        if isinstance(pagination, dict) and not pagination.get("complete", True):
+            return "PARTIAL"
         return "SUCCESS"
     if result.get("http_status") == 429:
         return "RATE_LIMITED"
     if result.get("http_status") is None:
         return "NETWORK_ERROR"
     return "FAILED"
+
+
+def _collection_label(result, has_records):
+    state = _endpoint_state(result)
+
+    if state == "PARTIAL":
+        return "PARTIAL_RECORDS_RETURNED" if has_records else "PARTIAL"
+
+    if has_records:
+        return "RECORDS_RETURNED"
+
+    return state
 
 
 def _endpoint_summary(provider_results):
@@ -150,6 +165,7 @@ def _endpoint_summary(provider_results):
                 "http_status": result.get("http_status"),
                 "error": result.get("error"),
                 "retrieved_at": result.get("retrieved_at"),
+                "pagination": result.get("pagination"),
             }
 
     return summary
@@ -381,11 +397,12 @@ def analyze_transactions(provider_results):
             items = None
 
         collection[provider] = {
-            "status": (
-                "RECORDS_RETURNED" if isinstance(items, list)
-                else _endpoint_state(result)
+            "status": _collection_label(
+                result,
+                isinstance(items, list) and bool(items),
             ),
             "record_count": len(items) if isinstance(items, list) else None,
+            "pagination": result.get("pagination"),
         }
 
     return {
@@ -461,10 +478,16 @@ def audit_wallet(address, enable_tonapi=False):
 
     endpoint_results = _endpoint_summary(provider_results)
     successful_endpoints = sum(
-        item["ok"]
+        item["state"] == "SUCCESS"
         for endpoints in endpoint_results.values()
         for item in endpoints.values()
     )
+    partial_endpoints = sum(
+        item["state"] == "PARTIAL"
+        for endpoints in endpoint_results.values()
+        for item in endpoints.values()
+    )
+    available_endpoints = successful_endpoints + partial_endpoints
     total_endpoints = sum(
         len(endpoints) for endpoints in endpoint_results.values()
     )
@@ -482,12 +505,14 @@ def audit_wallet(address, enable_tonapi=False):
         "collection": {
             "providers": list(providers),
             "successful_endpoints": successful_endpoints,
+            "partial_endpoints": partial_endpoints,
+            "available_endpoints": available_endpoints,
             "total_endpoints": total_endpoints,
             "status": (
                 "COMPLETE"
                 if successful_endpoints == total_endpoints
                 else "PARTIAL"
-                if successful_endpoints
+                if available_endpoints
                 else "FAILED"
             ),
         },
@@ -496,17 +521,19 @@ def audit_wallet(address, enable_tonapi=False):
         "activity": {
             "transaction_counts": tx_counts,
             "transaction_collection_status": {
-                "toncenter": (
-                    "RECORDS_RETURNED"
-                    if tx_counts["toncenter"] is not None
-                    else _endpoint_state(center.get("transactions", {}))
+                "toncenter": _collection_label(
+                    center.get("transactions", {}),
+                    tx_counts["toncenter"] is not None
+                    and tx_counts["toncenter"] > 0,
                 ),
                 "tonapi": (
                     "DISABLED"
                     if not enable_tonapi
-                    else "RECORDS_RETURNED"
-                    if tx_counts["tonapi"] is not None
-                    else _endpoint_state(api.get("transactions", {}))
+                    else _collection_label(
+                        api.get("transactions", {}),
+                        tx_counts["tonapi"] is not None
+                        and tx_counts["tonapi"] > 0,
+                    )
                 ),
             },
             "toncenter_trace_count": trace_count,
