@@ -1,0 +1,8 @@
+{
+  "auth_no_guard.fc": {"expect_auth001": true, "category": "TP"},
+  "auth_direct_guard.fc": {"expect_auth001": false, "category": "TN"},
+  "auth_helper_guard.fc": {"expect_auth001": false, "category": "TN_desired"},
+  "auth_caller_guard.fc": {"expect_auth001": false, "category": "TN_desired"},
+  "auth_partial_guard.fc": {"expect_auth001": true, "category": "TP"},
+  "auth_mixed_paths.fc": {"expect_auth001": true, "category": "TP_partial"}
+}

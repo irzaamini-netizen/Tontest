@@ -1,0 +1,7 @@
+{
+  "projects": [
+    {"name": "wallet-contract", "url": "https://github.com/ton-blockchain/wallet-contract"},
+    {"name": "token-contract", "url": "https://github.com/ton-blockchain/token-contract"},
+    {"name": "tolk-bench", "url": "https://github.com/ton-blockchain/tolk-bench"}
+  ]
+}
