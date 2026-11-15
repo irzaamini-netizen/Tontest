@@ -1,7 +1,111 @@
 {
+  "schema": "tonsec.real-projects-dataset.v1",
+  "updated": "2026-11-15",
+  "description": "Curated public TON projects for baseline static analysis evaluation. All projects are open-source and intended for read-only scanning.",
+  "selection_criteria": [
+    "Public GitHub repositories",
+    "Contain FunC (.fc/.func), Tolk (.tolk) or Tact (.tact) sources",
+    "Represent common contract patterns: wallet, jetton, nft, dex, governance, staking",
+    "Diverse language mix and complexity levels"
+  ],
   "projects": [
-    {"name": "wallet-contract", "url": "https://github.com/ton-blockchain/wallet-contract"},
-    {"name": "token-contract", "url": "https://github.com/ton-blockchain/token-contract"},
-    {"name": "tolk-bench", "url": "https://github.com/ton-blockchain/tolk-bench"}
+    {
+      "name": "wallet-contract",
+      "url": "https://github.com/ton-blockchain/wallet-contract",
+      "languages": ["FunC"],
+      "category": "wallet",
+      "notes": "Official wallet contracts"
+    },
+    {
+      "name": "token-contract",
+      "url": "https://github.com/ton-blockchain/token-contract",
+      "languages": ["FunC"],
+      "category": "jetton-nft",
+      "notes": "Fungible and non-fungible token contracts"
+    },
+    {
+      "name": "tolk-bench",
+      "url": "https://github.com/ton-blockchain/tolk-bench",
+      "languages": ["Tolk", "FunC"],
+      "category": "reference-benchmark",
+      "notes": "Tolk vs FunC reference contracts and gas benchmarks"
+    },
+    {
+      "name": "acton-contracts",
+      "url": "https://github.com/ton-blockchain/acton-contracts",
+      "languages": ["Tolk"],
+      "category": "reference-ecosystem",
+      "notes": "Modern Tolk reference contracts (wallets, jetton, nft, highload, multisig)"
+    },
+    {
+      "name": "highload-wallet-contract-v3",
+      "url": "https://github.com/ton-blockchain/highload-wallet-contract-v3",
+      "languages": ["FunC"],
+      "category": "wallet",
+      "notes": "Highload wallet v3"
+    },
+    {
+      "name": "multisig-contract-v2",
+      "url": "https://github.com/ton-blockchain/multisig-contract-v2",
+      "languages": ["FunC"],
+      "category": "wallet-multisig",
+      "notes": "Multi-owner wallet"
+    },
+    {
+      "name": "stablecoin-contract",
+      "url": "https://github.com/ton-blockchain/stablecoin-contract",
+      "languages": ["FunC"],
+      "category": "jetton",
+      "notes": "Centralised stablecoin jetton (TEP-74 / TEP-89)"
+    },
+    {
+      "name": "liquid-staking-contract",
+      "url": "https://github.com/ton-blockchain/liquid-staking-contract",
+      "languages": ["FunC"],
+      "category": "staking",
+      "notes": "Liquid staking protocol contracts"
+    },
+    {
+      "name": "governance-contract",
+      "url": "https://github.com/ton-blockchain/governance-contract",
+      "languages": ["FunC"],
+      "category": "governance",
+      "notes": "Governance related contracts"
+    },
+    {
+      "name": "nft-contracts",
+      "url": "https://github.com/getgems-io/nft-contracts",
+      "languages": ["FunC"],
+      "category": "nft",
+      "notes": "GetGems NFT related contracts"
+    },
+    {
+      "name": "w5",
+      "url": "https://github.com/tonkeeper/w5",
+      "languages": ["FunC"],
+      "category": "wallet",
+      "notes": "Wallet V5 with extensions and gasless support"
+    },
+    {
+      "name": "dex-core",
+      "url": "https://github.com/ston-fi/dex-core",
+      "languages": ["FunC"],
+      "category": "dex",
+      "notes": "STON.fi DEX core contracts"
+    },
+    {
+      "name": "notcoin-contract",
+      "url": "https://github.com/OpenBuilders/notcoin-contract",
+      "languages": ["FunC"],
+      "category": "jetton",
+      "notes": "Notcoin related contracts"
+    },
+    {
+      "name": "hipo-contract",
+      "url": "https://github.com/HipoFinance/contract",
+      "languages": ["FunC"],
+      "category": "staking",
+      "notes": "Hipo liquid staking (hTON)"
+    }
   ]
 }
