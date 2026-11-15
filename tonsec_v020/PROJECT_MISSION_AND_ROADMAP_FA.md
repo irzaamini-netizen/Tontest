@@ -100,6 +100,7 @@ $HOME/tonsec-0.2.0/tonsec_v020
 - پشتیبان پیش از اتصال Pipeline ایجاد و پیش از تغییر تأیید شده است.
 - قابلیت batch و orchestrator (`tonsec batch` / `tonsec run`) برای کشف پروژه و گزارش تجمیعی اضافه شده است.
 - مجموعه داده اولیه پروژه‌های واقعی تعریف و گسترش یافته است.
+- ابزار آماده‌سازی دیتاست و اجرای baseline بهبود یافته است.
 
 مسیر پشتیبان:
 $HOME/tonsec-backup-integration-20261104-234409
@@ -134,18 +135,26 @@ $HOME/tonsec-backup-integration-20261104-234409
 ### اولویت 1: آزمون واقعی گسترده  ← در حال اجرا
 
 **انجام‌شده در 2026-11-15:**
-- مجموعه `real_projects.json` از ۳ پروژه به ۱۴ پروژه متنوع گسترش یافت (wallet، jetton، nft، dex، staking، governance، reference Tolk).
-- اسکریپت `benchmark/tools/prepare_dataset.py` برای کلون shallow و تولید manifest اضافه شد.
+- مجموعه `real_projects.json` از ۳ پروژه به ۱۴ پروژه متنوع گسترش یافت.
+- اسکریپت `benchmark/tools/prepare_dataset.py` اضافه و سپس با `--dry-run` و بررسی خطا بهبود یافت.
+- بکاپ فایل قبلی: `prepare_dataset.py.bak-20261115-052700`
+- اسکریپت کمکی `benchmark/tools/run_baseline.sh` برای اجرای یکپارچه آماده‌سازی + baseline اضافه شد.
 - README بخش benchmark به‌روزرسانی شد.
 
-**اقدام بعدی فوری (بدون تکرار):**
-1. اجرای `prepare_dataset.py` روی ماشین کاربر و تولید `~/tonsec-baseline-projects` + `manifest.json`.
-2. اجرای یک‌بار baseline بدون هیچ تغییر کدی:
-   ```bash
-   tonsec run ~/tonsec-baseline-projects --out ~/tonsec-baseline-report-YYYYMMDD
-   ```
-3. ثبت خلاصه: تعداد پروژه‌های SUCCESS / PARTIAL / FAILED، فایل‌های تحلیل‌شده، یافته‌ها، diagnostics و زمان تقریبی.
-4. نمونه‌برداری دستی از یافته‌ها برای تشخیص اولیه True/False Positive.
+**اقدام بعدی فوری (روی ماشین کاربر):**
+```bash
+# روش پیشنهادی یک‌فرمان
+bash tonsec_v020/benchmark/tools/run_baseline.sh
+
+# یا مرحله‌ای:
+python3 tonsec_v020/benchmark/tools/prepare_dataset.py \
+  --dataset tonsec_v020/benchmark/datasets/real_projects.json \
+  --outdir ~/tonsec-baseline-projects
+
+tonsec run ~/tonsec-baseline-projects --out ~/tonsec-baseline-report-$(date +%Y%m%d-%H%M%S)
+```
+
+پس از اجرا، خلاصه `full_report.json` / `full_report.md` را برای ورود به اولویت ۲ ارسال کنید.
 
 ### اولویت 2: ارزیابی نتایج
 
@@ -181,16 +190,13 @@ $HOME/tonsec-backup-integration-20261104-234409
 
 ## 7. سابقه تغییرات و آزمون‌ها
 
-هر مرحله جدید باید با تاریخ، نسخه، تغییرات، علت تغییر، آزمون اجراشده و نتیجه ثبت شود.
-
 | تاریخ | مرحله | تغییر یا آزمون | نتیجه | محدودیت یا اقدام بعدی |
 |---|---|---|---|---|
 | 2026-11-04 | Pipeline | اتصال engine.scan به Pipeline مرکزی | موفق | عمق تحلیل همچنان محدود |
 | 2026-11-04 | End-to-end | اجرای دو Fixture و تولید JSON/Markdown | PASS | هر دو فایل PARTIAL |
 | 2026-11-04 | معماری محصول | تثبیت هدف آزمون گسترده پروژه‌های TON | ثبت شد | اجرای baseline واقعی |
-| 2026-11-15 | Dataset P1 | گسترش real_projects.json به ۱۴ پروژه + اسکریپت prepare_dataset | انجام شد | اجرای baseline روی مجموعه آماده‌شده |
-
-این جدول باید در ادامه پروژه به‌روزرسانی شود.
+| 2026-11-15 | Dataset P1 | گسترش real_projects.json به ۱۴ پروژه + اسکریپت prepare_dataset | انجام شد | اجرای baseline |
+| 2026-11-15 | Tooling P1 | بهبود prepare_dataset (dry-run) + اضافه شدن run_baseline.sh + بکاپ | انجام شد | اجرای baseline توسط کاربر |
 
 ## 8. معیار موفقیت نهایی
 
