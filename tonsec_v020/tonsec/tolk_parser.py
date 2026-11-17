@@ -17,6 +17,9 @@ def _span(source, start, end):
 def _v(token):
     return getattr(token, "value", "")
 
+def _kind(token):
+    return str(getattr(getattr(token, "kind", None), "name", getattr(token, "kind", "")))
+
 def _matching(tokens, start, opening, closing):
     depth = 0
     for i in range(start, len(tokens)):
@@ -160,14 +163,60 @@ def parse_tolk(source):
             i = open_paren + 1
             continue
 
+        # Skip return-type tokens until body marker: '{' or 'asm'
         body_open = close_paren + 1
         while body_open < len(tokens):
             value = _v(tokens[body_open])
-            if value == "{" or value in (";", "}"):
+            if value in ("{", "asm") or value in (";", "}"):
                 break
             body_open += 1
 
-        if body_open >= len(tokens) or _v(tokens[body_open]) != "{":
+        body_close = None
+        modifiers = ["get"] if getter else []
+
+        if body_open < len(tokens) and _v(tokens[body_open]) == "{":
+            body_close = _matching(tokens, body_open, "{", "}")
+            if body_close is None:
+                diagnostics.append(Diagnostic(
+                    code="TOLK-PARSE-003",
+                    message=f"Unclosed function body for {name}",
+                    severity=DiagnosticSeverity.ERROR,
+                    span=_span(
+                        source,
+                        tokens[fun_index].span.start.offset,
+                        tokens[body_open].span.end.offset,
+                    ),
+                ))
+                i = body_open + 1
+                continue
+
+        elif body_open < len(tokens) and _v(tokens[body_open]) == "asm":
+            # Assembly body: asm "..." or asm { ... } (minimal support)
+            modifiers.append("asm")
+            cursor = body_open + 1
+            if cursor < len(tokens) and _v(tokens[cursor]) == "{":
+                body_close = _matching(tokens, cursor, "{", "}")
+                if body_close is None:
+                    diagnostics.append(Diagnostic(
+                        code="TOLK-PARSE-003",
+                        message=f"Unclosed asm body for {name}",
+                        severity=DiagnosticSeverity.ERROR,
+                        span=_span(
+                            source,
+                            tokens[fun_index].span.start.offset,
+                            tokens[cursor].span.end.offset,
+                        ),
+                    ))
+                    i = cursor + 1
+                    continue
+            else:
+                # Consume one string/instruction token if present
+                if cursor < len(tokens):
+                    body_close = cursor
+                else:
+                    body_close = body_open
+
+        else:
             diagnostics.append(Diagnostic(
                 code="TOLK-PARSE-002",
                 message=f"Function body not found for {name}",
@@ -179,21 +228,6 @@ def parse_tolk(source):
                 ),
             ))
             i = close_paren + 1
-            continue
-
-        body_close = _matching(tokens, body_open, "{", "}")
-        if body_close is None:
-            diagnostics.append(Diagnostic(
-                code="TOLK-PARSE-003",
-                message=f"Unclosed function body for {name}",
-                severity=DiagnosticSeverity.ERROR,
-                span=_span(
-                    source,
-                    tokens[fun_index].span.start.offset,
-                    tokens[body_open].span.end.offset,
-                ),
-            ))
-            i = body_open + 1
             continue
 
         return_type = None
@@ -219,7 +253,7 @@ def parse_tolk(source):
                 tokens[body_close].span.end.offset,
             ),
             return_type=return_type,
-            modifiers=("get",) if getter else (),
+            modifiers=tuple(modifiers),
             is_getter=getter,
         ))
 
