@@ -1,44 +1,32 @@
 # CONTINUE HERE
 
-آخرین به‌روزرسانی: 2026-11-18 14:40 +04
+آخرین به‌روزرسانی: 2026-11-18 14:42 +04
 مخزن: https://github.com/irzaamini-netizen/Tontest
 شاخه: grok-benchmark-engine
 مسیر Termux: /data/data/com.termux/files/home/tonsec-upgrade01-independent-audit/repository/tonsec_v020
 
 ## قانون ثبت
-هر کار جدید، قبل از پایان همان نشست، باید در این فایل ثبت شود.
-حساب دیگر فقط همین فایل را می‌خواند. گفتگو منتقل نمی‌شود.
+هر کار جدید قبل از پایان نشست در این فایل نوشته شود.
 کار انجام‌شده تکرار نشود. بدون بکاپ فایل هسته تغییر نکن.
-
-## خطای ثبت
-
-2026-11-18: دستور ادامه به حساب دیگر داده شد، اما نتیجه آن حساب روی گیت نبود.
-بررسی همین روز: آخرین commit شاخه هنوز 72c5f3a بود. شاخه جدید هم نبود.
-پس کار حساب دیگر، اگر انجام شده باشد، فقط محلی مانده و اینجا دیده نمی‌شود.
 
 ## انجام‌شده
 
-1. نصب tonsec روی Termux. doctor = OK. نسخه 0.2.0
-2. Ground truth فیکسچر: P=1.0 / R=1.0 روی 15 نمونه
-3. سه پروژه پین:
-   - wallet-contract 68b56dc0f7f6a9d41a190a4c91f6dc68b18f0600
-   - token-contract 1182ad99413242f09925d50e70ccb7e0e09f94d4
-   - tolk-bench 57e1009743bfc19748caa95d76180d9e9793e4c5
-4. lexer: نقطه به عملگر FunC اضافه شد. بکاپ lexer.py.bak-20261116-before-dot-fix
-   - unrecognized 1195 -> 0
-   - پروژه ناقص 13 -> 2
-5. parser: بدنه asm پذیرفته شد. بکاپ tolk_parser.py.bak-20261117-before-asm-body
-   - موفق 18 / ناقص 1 / diagnostic 0 / توابع 472 / یافته 113
-   - ناقص باقی فقط JS/TS در token-contract
-6. نمونه AUTH: benchmark/reports/AUTH_SAMPLE_REVIEW_20261118_FA.md
-7. بررسی قاعده در tonsec/engine.py:
-   throw_unless که هم owner و هم sender داشته باشد از قبل guard است.
-   send_tokens و burn_tokens را دوباره اصلاح نکن.
+1. نصب tonsec و doctor = OK
+2. Ground truth فیکسچر P=1.0 / R=1.0
+3. سه پروژه پین‌شده و baseline
+4. lexer: نقطه در FunC. unrecognized 1195 -> 0. ناقص 13 -> 2
+5. parser: بدنه asm. موفق 18 / ناقص 1 / diagnostic 0 / یافته 113 / توابع 472
+6. send_tokens و burn_tokens از قبل با owner+sender گارد دارند. دوباره اصلاح نشدند.
+7. 2026-11-18: قاعده AUTH حالا jetton_master و minter را هم به‌عنوان نقش می‌پذیرد، تا receive_tokens مثبت کاذب نباشد.
+   commit کامل: a371d0f
+   نسخه قبل از این خط: blob d41cae9
+   فایل engine.py.bak-20261118-before-master-guard ناقص است. از آن برای بازگشت استفاده نکن.
+
+## هشدار
+
+Termux هنوز نسخه قدیمی engine.py را اجرا می‌کند تا فایل جدید کپی شود.
+اسکن کامل تکرار نشود. فقط همان ft/jetton-wallet.fc را بعد از کپی بسنج.
 
 ## اقدام بعدی
 
-فقط receive_tokens: گارد فرستنده master یا کیف محاسبه‌شده را قاعده نمی‌بیند.
-قبل از تغییر قاعده، یک یافته واقعی AUTH-001 از گزارش
-/data/data/com.termux/files/home/tonsec-baseline-3proj-after-asmfix
-خوانده شود. اگر همان الگو بود، بکاپ بگیر و فقط همان را اضافه کن.
-اسکن کامل را بی‌دلیل تکرار نکن.
+کپی engine.py جدید روی Termux، سپس اسکن فقط jetton-wallet و شمارش یافته AUTH تابع receive_tokens.
