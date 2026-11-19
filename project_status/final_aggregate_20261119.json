@@ -1,0 +1,41 @@
+{
+  "generated": "2026-11-19",
+  "engine_version": "0.2.0",
+  "branch": "grok-benchmark-engine",
+  "engine_commit_auth_tolk": "3a3d14ebbfbe2443afe92268cb8c169f3e51fbde",
+  "targets": {
+    "wallet-contract": {
+      "pin": "68b56dc0f7f6a9d41a190a4c91f6dc68b18f0600",
+      "files_analyzed": 3,
+      "functions_extracted": 17,
+      "findings_total": 4,
+      "files_partial": 0,
+      "diagnostics_total": 0,
+      "by_rule": {"TON-AUTH-001": 4}
+    },
+    "token-contract": {
+      "pin": "1182ad99413242f09925d50e70ccb7e0e09f94d4",
+      "files_analyzed": 31,
+      "functions_extracted": 88,
+      "findings_total": 10,
+      "files_partial": 12,
+      "diagnostics_total": 0,
+      "by_rule": {"TON-AUTH-001": 9, "TON-ASSET-002": 1}
+    },
+    "tolk-bench": {
+      "pin": "57e1009743bfc19748caa95d76180d9e9793e4c5",
+      "files_analyzed": 47,
+      "functions_extracted": 253,
+      "findings_total": 9,
+      "files_partial": 0,
+      "diagnostics_total": 0,
+      "by_rule": {"TON-AUTH-001": 5, "TON-ASSET-002": 3, "TON-ASSET-001": 1}
+    }
+  },
+  "aggregate": {
+    "files_analyzed": 81,
+    "functions_extracted": 358,
+    "findings_total": 23,
+    "diagnostics_total": 0
+  }
+}
