@@ -52,6 +52,8 @@ REPLAY=[
     r'\bmsg_seqno\b',
     r'\bstored_seqno\b',
     r'\bvalid_until\b',
+    r'\bvalid_since\b',
+    r'\bvalid_till\b',
     r'\bquery_id\b',
     r'\bnonce\b',
 ]
@@ -66,6 +68,29 @@ SEQNO_VALIDATE = re.compile(
 )
 
 def has(patterns,s): return any(re.search(p,s,re.I) for p in patterns)
+
+def strip_func_line_comments(source):
+    lines = []
+    for line in source.splitlines(keepends=True):
+        cut = line.find(';;')
+        if cut >= 0:
+            line = line[:cut] + ('\n' if line.endswith('\n') else '')
+        lines.append(line)
+    return ''.join(lines)
+
+def same_file_callers_guarded(funcs, callee_name, helper_guards):
+    """True only when callee has at least one same-file caller and every call site is guarded."""
+    call_re = re.compile(r'\b' + re.escape(callee_name) + r'\s*\(')
+    sites = 0
+    for caller in funcs:
+        if caller.name == callee_name:
+            continue
+        for match in call_re.finditer(caller.text):
+            sites += 1
+            if not has_auth_guard_before(caller.text, match.start(), helper_guards):
+                return False
+    return sites > 0
+
 def has_auth_guard_before(source, offset, helper_guards):
     prefix = source[:offset]
 
@@ -164,6 +189,8 @@ def _analyze_source(path, src):
 
         for m in sends:
             if not has_auth_guard_before(b, m.start(), helper_guards):
+                if same_file_callers_guarded(funcs, f.name, helper_guards):
+                    continue
                 add(
                     'TON-AUTH-001',
                     'Outbound message path without visible local authorization guard',
@@ -172,15 +199,19 @@ def _analyze_source(path, src):
                     'A message-emission primitive appears without a recognized authorization guard before this send.',
                     'This is a lexical prefix check. Branches, scopes, caller authorization, modifiers, and semantic control flow are not resolved.'
                 )
-        if has(SIG,b) and not has(REPLAY,b):
-            m=re.search(SIG[0],b,re.I); add('TON-REPLAY-001','Signature handling without visible replay-domain control','MEDIUM','LOW',f.name,f.body_start+(m.start() if m else 0),b[:240],'Signature-related logic appears without seqno/nonce/query_id/valid_until markers in this function.','Replay protection may be in a helper or signed payload; this is not proof of replayability.')
-        m=re.search(r'(?<![.:])\bvalid_until\b',b,re.I)
-        if m and not re.search(r'\b(now|timestamp|block_time|cur_lt)\b',b,re.I):
+        code=strip_func_line_comments(b)
+        if has(SIG,code) and not has(REPLAY,code):
+            m=re.search(SIG[0],code,re.I); add('TON-REPLAY-001','Signature handling without visible replay-domain control','MEDIUM','LOW',f.name,f.body_start+(m.start() if m else 0),b[:240],'Signature-related logic appears without seqno/nonce/query_id/valid_until markers in this function.','Replay protection may be in a helper or signed payload; this is not proof of replayability.')
+        m=re.search(r'(?<![.:])\bvalid_until\b',code,re.I)
+        if m and not re.search(r'\b(now|timestamp|block_time|cur_lt)\b',code,re.I):
             add('TON-TIME-001','Expiry field without visible time comparison','MEDIUM','LOW',f.name,f.body_start+m.start(),b[max(0,m.start()-80):m.end()+120],'valid_until appears without a recognizable current-time comparison in this function.','A helper or language-specific time API may implement the check.')
-        m=re.search(r'(?<![.:])\b(?:msg_|stored_)?seqno\b',b,re.I)
-        if m and not SEQNO_VALIDATE.search(b):
+        m=re.search(r'(?<![.:])\b(?:msg_|stored_)?seqno\b',code,re.I)
+        if m and not SEQNO_VALIDATE.search(code):
+            # Persistence helpers only store the counter; validation lives in the caller.
+            if f.name in {'save_data', 'load_data'}:
+                pass
             # Skip pure getters / size constants without mutation or signature path.
-            if has(SIG,b) or has(SEND,b) or re.search(r'\b(set_data|throw_if|throw_unless|assert)\b',b,re.I):
+            elif has(SIG,code) or has(SEND,code) or re.search(r'\b(set_data|throw_if|throw_unless|assert)\b',code,re.I):
                 add('TON-REPLAY-002','Sequence counter without visible validation/update','LOW','LOW',f.name,f.body_start+m.start(),b[max(0,m.start()-70):m.end()+120],'seqno appears without a recognizable comparison or increment in this function.','State validation may be delegated or expressed indirectly.')
         if has([r'\b(extension|plugin|add_extension|remove_extension|install_extension)\b'],b):
             for m in sends:
