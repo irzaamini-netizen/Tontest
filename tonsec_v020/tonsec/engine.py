@@ -13,7 +13,7 @@ AUTH_GUARD_IDENTITY = [
     r'\b(sender|msg_sender|context\.sender|sender_address|senderAddress|msgSender)\b'
 ]
 AUTH_GUARD_ROLE = [
-    r'\b((?:nft_)?owner|admin|authorized|is_authorized|role|jetton_master|minter|marketplace|collection|vesting_sender)(?:Address|_address)?\b'
+    r'\b((?:nft_)?owner|admin|authorized|is_authorized|role||jetton_master|minter|marketplace|collection|vesting_sender)(?:Address|_address)?\b'
 ]
 AUTH_GUARD_FUNCTION = [
     r'\b(check_signature|verify_signature|is_authorized|is_owner|only_owner|only_admin)\s*\('
@@ -46,6 +46,13 @@ def has_auth_guard(source):
             return True
         if has(AUTH_GUARD_IDENTITY, expr) and has(AUTH_GUARD_WALLET_PROOF, expr):
             return True
+    # Wallet-v4 subscription plugin style authority check
+    if re.search(
+        r'\bslice_data_equal\?\s*\(\s*s_addr\s*,\s*(?:wallet|beneficiary)\s*\)',
+        source,
+        re.I,
+    ):
+        return True
     return False
 
 def has_plugin_install_guard(source):
@@ -201,6 +208,10 @@ def _analyze_source(path, src):
             [m for p in SEND for m in re.finditer(p,b,re.I)],
             key=lambda m: m.start()
         )
+
+        # Public read-only response helpers (standard NFT royalty query).
+        if f.name in {'send_royalty_params'}:
+            continue
 
         for m in sends:
             if not has_auth_guard_before(b, m.start(), helper_guards):
