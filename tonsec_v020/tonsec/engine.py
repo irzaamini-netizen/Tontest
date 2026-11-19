@@ -13,7 +13,7 @@ AUTH_GUARD_IDENTITY = [
     r'\b(sender|msg_sender|context\.sender|sender_address|senderAddress|msgSender)\b'
 ]
 AUTH_GUARD_ROLE = [
-    r'\b((?:nft_)?owner|admin|authorized|is_authorized|role||jetton_master|minter|marketplace|collection|vesting_sender)(?:Address|_address)?\b'
+    r'\b((?:nft_)?owner|admin|authorized|is_authorized|role|jetton_master|minter|marketplace|collection|vesting_sender)(?:Address|_address)?\b'
 ]
 AUTH_GUARD_FUNCTION = [
     r'\b(check_signature|verify_signature|is_authorized|is_owner|only_owner|only_admin)\s*\('
