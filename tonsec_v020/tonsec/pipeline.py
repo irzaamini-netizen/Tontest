@@ -4,12 +4,93 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 
+def _analyze_file(file_path, relative, skipped):
+    from .engine import EXTS, _analyze_source
+
+    suffix = file_path.suffix.lower()
+
+    if suffix not in EXTS:
+        skipped["unsupported"] += 1
+        return None, []
+
+    try:
+        if file_path.stat().st_size > 2 * 1024 * 1024:
+            skipped["too_large"] += 1
+            return None, []
+
+        raw = file_path.read_bytes()
+        decode_error = False
+
+        try:
+            src = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            src = raw.decode("utf-8", errors="replace")
+            decode_error = True
+
+        file_findings, functions, diagnostics = _analyze_source(relative, src)
+
+        parser_mode = (
+            "func_structural"
+            if suffix in {".fc", ".func"}
+            else "tolk_structural"
+            if suffix == ".tolk"
+            else "legacy_heuristic"
+        )
+
+        diagnostics = list(diagnostics)
+
+        if decode_error:
+            diagnostics.append({
+                "code": "INPUT001",
+                "message": "Invalid UTF-8 detected; replacement decoding was used.",
+                "severity": "warning",
+                "line": 1,
+                "column": 1,
+                "offset": 0,
+            })
+
+        notes = []
+
+        if parser_mode == "legacy_heuristic":
+            notes.append(
+                "This file uses legacy heuristic function extraction."
+            )
+
+        if decode_error:
+            notes.append(
+                "Source encoding was not valid UTF-8."
+            )
+
+        status = (
+            "PARTIAL"
+            if diagnostics or notes
+            else "COMPLETE"
+        )
+
+        record = {
+            "path": relative,
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "bytes": len(raw),
+            "language_parser": parser_mode,
+            "functions_extracted": len(functions),
+            "function_names": [fn.name for fn in functions],
+            "analysis_status": status,
+            "analysis_notes": notes,
+            "diagnostics": diagnostics,
+        }
+        return record, file_findings
+
+    except OSError:
+        skipped["unreadable"] += 1
+        return None, []
+
+
 def scan_project(root, exclude_roots=None):
-    from .engine import EXTS, SKIP, _analyze_source
+    from .engine import SKIP
 
     rp = Path(root).expanduser().resolve()
-    if not rp.is_dir():
-        raise ValueError(f"Not a directory: {rp}")
+    if not rp.exists():
+        raise ValueError(f"Path not found: {rp}")
 
     excluded_roots = {
         Path(item).expanduser().resolve()
@@ -27,96 +108,31 @@ def scan_project(root, exclude_roots=None):
         "unreadable": 0,
     }
 
-    for base, dirs, names in os.walk(rp):
-        current = Path(base).resolve()
-        dirs[:] = sorted(
-            d for d in dirs
-            if d not in SKIP
-            and (current / d).resolve() not in excluded_roots
-        )
+    if rp.is_file():
+        record, file_findings = _analyze_file(rp, rp.name, skipped)
+        if record is not None:
+            records.append(record)
+            findings.extend(file_findings)
+        target = str(rp)
+    elif rp.is_dir():
+        for base, dirs, names in os.walk(rp):
+            current = Path(base).resolve()
+            dirs[:] = sorted(
+                d for d in dirs
+                if d not in SKIP
+                and (current / d).resolve() not in excluded_roots
+            )
 
-        for name in sorted(names):
-            file_path = Path(base) / name
-            suffix = file_path.suffix.lower()
-
-            if suffix not in EXTS:
-                skipped["unsupported"] += 1
-                continue
-
-            try:
-                if file_path.stat().st_size > 2 * 1024 * 1024:
-                    skipped["too_large"] += 1
-                    continue
-
-                raw = file_path.read_bytes()
-                decode_error = False
-
-                try:
-                    src = raw.decode("utf-8")
-                except UnicodeDecodeError:
-                    src = raw.decode("utf-8", errors="replace")
-                    decode_error = True
-
+            for name in sorted(names):
+                file_path = Path(base) / name
                 relative = str(file_path.relative_to(rp))
-
-                file_findings, functions, diagnostics = _analyze_source(
-                    relative, src
-                )
-
-                findings.extend(file_findings)
-
-                parser_mode = (
-                    "func_structural"
-                    if suffix in {".fc", ".func"}
-                    else "tolk_structural"
-                    if suffix == ".tolk"
-                    else "legacy_heuristic"
-                )
-
-                diagnostics = list(diagnostics)
-
-                if decode_error:
-                    diagnostics.append({
-                        "code": "INPUT001",
-                        "message": "Invalid UTF-8 detected; replacement decoding was used.",
-                        "severity": "warning",
-                        "line": 1,
-                        "column": 1,
-                        "offset": 0,
-                    })
-
-                notes = []
-
-                if parser_mode == "legacy_heuristic":
-                    notes.append(
-                        "This file uses legacy heuristic function extraction."
-                    )
-
-                if decode_error:
-                    notes.append(
-                        "Source encoding was not valid UTF-8."
-                    )
-
-                status = (
-                    "PARTIAL"
-                    if diagnostics or notes
-                    else "COMPLETE"
-                )
-
-                records.append({
-                    "path": relative,
-                    "sha256": hashlib.sha256(raw).hexdigest(),
-                    "bytes": len(raw),
-                    "language_parser": parser_mode,
-                    "functions_extracted": len(functions),
-                    "function_names": [fn.name for fn in functions],
-                    "analysis_status": status,
-                    "analysis_notes": notes,
-                    "diagnostics": diagnostics,
-                })
-
-            except OSError:
-                skipped["unreadable"] += 1
+                record, file_findings = _analyze_file(file_path, relative, skipped)
+                if record is not None:
+                    records.append(record)
+                    findings.extend(file_findings)
+        target = str(rp)
+    else:
+        raise ValueError(f"Not a directory or file: {rp}")
 
     all_diagnostics = [
         item
@@ -134,7 +150,7 @@ def scan_project(root, exclude_roots=None):
         "engine": "TON Security Engine",
         "engine_version": "0.2.0",
         "created_utc": datetime.now(timezone.utc).isoformat(),
-        "target": str(rp),
+        "target": target,
         "mode": "READ_ONLY_STATIC_ANALYSIS",
 
         "analysis_pipeline": {
