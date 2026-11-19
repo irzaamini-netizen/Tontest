@@ -31,6 +31,15 @@ def has_auth_guard(source):
         if has(AUTH_GUARD_FUNCTION, expr):
             return True
     return False
+
+def has_plugin_install_guard(source):
+    """Installed-plugin check: plugins.dict_get? ... success? before send."""
+    return bool(
+        re.search(r'\bplugins\b', source, re.I)
+        and re.search(r'\bdict_get\?', source, re.I)
+        and re.search(r'\bsuccess\?', source, re.I)
+    )
+
 SIG=[r'\bsignature\b',r'\bcheck_signature\b',r'\bcheck_data_signature\b',r'\bverify_signature\b']
 REPLAY=[
     r'\bseqno\b',
@@ -164,15 +173,19 @@ def _analyze_source(path, src):
             add('TON-REPLAY-002','Sequence counter without visible validation/update','LOW','LOW',f.name,f.body_start+m.start(),b[max(0,m.start()-70):m.end()+120],'seqno appears without a recognizable comparison or increment in this function.','State validation may be delegated or expressed indirectly.')
         if has([r'\b(extension|plugin|add_extension|remove_extension|install_extension)\b'],b):
             for m in sends:
-                if not has_auth_guard_before(b, m.start(), helper_guards):
-                    add(
-                        'TON-EXT-001',
-                        'Extension-related outbound message without visible local authorization',
-                        'HIGH','LOW',f.name,f.body_start+m.start(),
-                        b[max(0,m.start()-90):m.end()+120],
-                        'Extension/plugin vocabulary co-occurs with this outbound message without a recognized preceding local guard.',
-                        'Wallet extension authorization may be enforced elsewhere; confirm lifecycle and installed-authority state.'
-                    )
+                prefix = b[:m.start()]
+                if has_auth_guard_before(b, m.start(), helper_guards):
+                    continue
+                if has_plugin_install_guard(prefix):
+                    continue
+                add(
+                    'TON-EXT-001',
+                    'Extension-related outbound message without visible local authorization',
+                    'HIGH','LOW',f.name,f.body_start+m.start(),
+                    b[max(0,m.start()-90):m.end()+120],
+                    'Extension/plugin vocabulary co-occurs with this outbound message without a recognized preceding local guard.',
+                    'Wallet extension authorization may be enforced elsewhere; confirm lifecycle and installed-authority state.'
+                )
     for opcode,rule,title in [('0x0f8a7ea5','TON-ASSET-001','Jetton transfer opcode marker'),('0x5fcc3d14','TON-ASSET-002','NFT transfer opcode marker')]:
         m=re.search(opcode,src,re.I)
         if m: add(rule,title,'INFO','HIGH','<file>',m.start(),m.group(),'A standard TON asset opcode marker is present.','Presence does not prove correct implementation or a vulnerability.')
