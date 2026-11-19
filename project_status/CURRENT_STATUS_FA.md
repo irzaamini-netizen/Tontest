@@ -1,34 +1,36 @@
 # وضعیت فعلی پروژه
 
-آخرین به‌روزرسانی: 2026-11-19 (ادامه شب)
-شاخه: `grok-benchmark-engine`
-موتور: `tonsec_v020` نسخه 0.2.0
+آخرین به‌روزرسانی: 2026-11-19
+شاخه: grok-benchmark-engine
+موتور: tonsec_v020 / 0.2.0
+آخرین commit موتور: 36056a85
 
-## مسیرها
-- مخزن: https://github.com/irzaamini-netizen/Tontest
-- وضعیت: `project_status/`
-- موتور: `tonsec_v020/`
+## اولویت‌های مهم انجام‌شده در این دور
+1. AUTH هم‌فایل: اگر همه callerهای همان فایل قبل از فراخوانی guard داشته باشند، helper flag نمی‌شود
+2. REPLAY: `valid_since` / `valid_till` به‌عنوان کنترل زمانی/replay
+3. حذف FP کامنت و getter و `save_data`/`load_data` برای REPLAY-002
+4. اسکن مجدد wallet / token / tolk-bench
 
-## انجام‌شده
-1. نصب/doctor
-2. پروژه‌های پین wallet / token / tolk-bench
-3. lexer نقطه FunC (گیت: fccbfcc5)
-4. tolk asm body
-5. AUTH نقش پسوند، wallet-proof، plugin، nft_owner/marketplace/collection
-6. REPLAY msg_seqno/stored_seqno
-7. pipeline اسکن تک‌فایل
-8. اسکن wallet+token (جزئیات در SCAN_RESULTS_20261119_FA.md)
-9. اسکن tolk-bench 47 فایل / 253 تابع / diagnostic 0
-10. کاهش FP: TIME/REPLAY با نادیده گرفتن size:: و getter خالص (0b62edc9)
+## نتایج اسکن (پس از 36056a85)
 
-## نتایج کلیدی
 | هدف | فایل | توابع | یافته | partial | diag |
 |---|---:|---:|---:|---:|---:|
 | wallet-contract | 3 | 17 | 4 | 0 | 0 |
-| token-contract | 31 | 88 | 15 | 12 | 0 |
-| tolk-bench (پس از اصلاح TIME/REPLAY) | 47 | 253 | 33 | 0 | 0 |
+| token-contract | 31 | 88 | 10 | 12 | 0 |
+| tolk-bench | 47 | 253 | 21 | 0 | 0 |
 
-## اقدام بعدی
-- baseline یک‌بار روی Termux با engine فعلی
-- AUTH helper فقط با شاهد جدید
-- بررسی REPLAY-001 telemint و REPLAY-002 باقی‌مانده با شاهد
+### تغییرات نسبت به قبل از این دور
+- token AUTH: 14 → 9 (mint/deploy/send_msg با caller محافظت‌شده حذف شدند)
+- tolk یافته: 33 → 21
+- REPLAY-001/002 روی tolk-bench: 0
+
+### یافته‌های عمداً باقی‌مانده
+- wallet subscription plugin (مسیرهای بدون guard نقش متعارف)
+- nft-sale `buy` (خرید عمومی با پرداخت)
+- send_royalty_params عمومی
+- مسیرهای Tolk با الگوی guard متفاوت از FunC throw_unless
+
+## باقی‌مانده غیرمسدودکننده
+- baseline رسمی Termux یک‌بار با engine فعلی برای مقایسه عددی آرشیوی
+- گسترش AUTH برای الگوی Tolk (assert/throw متفاوت)
+- CFG / dataflow / TVM
