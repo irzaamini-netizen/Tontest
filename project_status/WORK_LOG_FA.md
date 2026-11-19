@@ -2,9 +2,10 @@
 
 | تاریخ | اقدام | نتیجه |
 |---|---|---|
-| 2026-11-19 | نقطه lexer گیت | fccbfcc5 |
-| 2026-11-19 | REPLAY/TIME FP | 0b62edc9 |
-| 2026-11-19 | caller هم‌فایل + valid_since/till | 36056a85 |
-| 2026-11-19 | AUTH camelCase Tolk | 3a3d14eb؛ AUTH روی .tolk → 0 |
-| 2026-11-19 | اسکن نهایی سه هدف | 81 فایل، 23 یافته، 0 diag |
-| 2026-11-19 | گزارش جامع | FINAL_AGGREGATE_20261119_FA.md |
+| 2026-11-19 | نقطه lexer / Tolk asm / AUTH پایه | diagnostic صفر روی مسیرهای اصلاح‌شده |
+| 2026-11-19 | AUTH camelCase Tolk | AUTH روی `.tolk` → ۰ |
+| 2026-11-19 | equal_slices + vesting_sender | AUTH vesting حذف |
+| 2026-11-19 | tact_parser + pipeline tact_structural | اسکلت Tact |
+| 2026-11-19 | same-project AUTH callers | interprocedural جزئی |
+| 2026-11-19 | slice_data_equal + skip royalty | یافته کل ۱۳ |
+| 2026-11-19 | ثبت گزارش وضعیت مراحل و نتایج | `STATUS_REPORT_20261119_FA.md` |

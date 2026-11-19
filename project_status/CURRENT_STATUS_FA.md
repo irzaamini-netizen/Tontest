@@ -1,18 +1,20 @@
 # وضعیت فعلی پروژه
 
-آخرین به‌روزرسانی: 2026-11-19
+آخرین به‌روزرسانی: 2026-11-19  
+گزارش کامل: `STATUS_REPORT_20261119_FA.md`  
+فاز ۱: `PHASE1_COMPLETE_FA.md`
 
-## فاز ۱: تکمیل‌شده
-جزئیات: `PHASE1_COMPLETE_FA.md`
+## خلاصه اعداد
+| هدف | یافته | AUTH | diag |
+|---|---:|---:|---:|
+| wallet | ۴ | ۴ | ۰ |
+| token | ۴ | ۳ | ۰ |
+| tolk-bench | ۵ | ۱ | ۰ |
+| **جمع** | **۱۳** | **۸** | **۰** |
 
-## اعداد
-جمع یافته روی سه هدف پین: **13** (diagnostic **0**)
+## وضعیت فاز
+- **فاز ۱ (موتور عملیاتی FunC/Tolk + اسکلت Tact):** تکمیل‌شده  
+- **فاز ۲ (CFG/TVM/مقیاس/Tact کامل):** باز
 
-## آخرین اصلاحات
-- slice_data_equal?(s_addr, wallet|beneficiary)
-- skip AUTH برای send_royalty_params (پاسخ عمومی royalty)
-- tact: external + receive + fun + get fun
-- interprocedural جزئی same-project callers
-
-## فاز ۲ (باز — خارج از محدوده فاز ۱)
-CFG، dataflow، TVM، مقیاس سازمانی، Tact کامل
+## مسیر مخزن
+https://github.com/irzaamini-netizen/Tontest/tree/grok-benchmark-engine
