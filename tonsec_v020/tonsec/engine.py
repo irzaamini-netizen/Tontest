@@ -66,6 +66,9 @@ def has_auth_guard_before(source, offset, helper_guards):
     if has_auth_guard(prefix):
         return True
 
+    if has_plugin_install_guard(prefix):
+        return True
+
     for name, guarded in helper_guards.items():
         if guarded and re.search(r'\b' + re.escape(name) + r'\s*\(', prefix):
             return True
@@ -132,7 +135,7 @@ def _analyze_source(path, src):
         summaries = []
         for helper in definitions:
             helper_sends = sorted(
-                [m for pattern in SEND for m in re.finditer(pattern, helper.text, re.I)],
+                [m for pattern in SEND for for m in re.finditer(pattern, helper.text, re.I)],
                 key=lambda m: m.start()
             )
             if helper_sends:
