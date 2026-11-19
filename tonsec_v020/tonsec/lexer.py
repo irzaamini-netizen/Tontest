@@ -66,6 +66,7 @@ OPERATORS_BY_LANGUAGE = {
         "/%", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=",
         "+", "-", "*", "/", "%", "?", ":", "=", "<", ">",
         "&", "|", "^", "~",
+        ".",
     }),
     Language.TOLK: operator_table({
         "??", "&&", "||", "<=>", "==", "!=", "<=", ">=",
@@ -252,8 +253,8 @@ class Lexer:
 
         if self.language == Language.FUNC:
             line_start = max(
-                self.source.rfind("\\n", 0, self.offset),
-                self.source.rfind("\\r", 0, self.offset),
+                self.source.rfind("\n", 0, self.offset),
+                self.source.rfind("\r", 0, self.offset),
             ) + 1
             prefix = self.source[line_start:self.offset]
 
