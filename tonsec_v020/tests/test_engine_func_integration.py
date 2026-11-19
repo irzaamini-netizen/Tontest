@@ -36,7 +36,7 @@ class FuncEngineIntegrationTests(unittest.TestCase):
         self.assertEqual(len(auth), 1)
         self.assertEqual(auth[0]["line"], 2)
 
-    def test_tolk_still_uses_legacy_parser(self):
+    def test_tolk_unprotected_send_is_detected(self):
         source = "fun withdraw(){ send_raw_message(msg, 0); }"
         findings, functions = scan_source("wallet.tolk", source)
 
