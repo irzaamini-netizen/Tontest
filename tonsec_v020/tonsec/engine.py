@@ -32,7 +32,23 @@ def has_auth_guard(source):
             return True
     return False
 SIG=[r'\bsignature\b',r'\bcheck_signature\b',r'\bcheck_data_signature\b',r'\bverify_signature\b']
-REPLAY=[r'\bseqno\b',r'\bvalid_until\b',r'\bquery_id\b',r'\bnonce\b']
+REPLAY=[
+    r'\bseqno\b',
+    r'\bmsg_seqno\b',
+    r'\bstored_seqno\b',
+    r'\bvalid_until\b',
+    r'\bquery_id\b',
+    r'\bnonce\b',
+]
+SEQNO_VALIDATE = re.compile(
+    r'(?:'
+    r'(?:msg_|stored_)?seqno\s*=='
+    r'|==\s*(?:msg_|stored_)?seqno'
+    r'|(?:stored_)?seqno\s*\+'
+    r'|(?:msg_|stored_)?seqno\s*!='
+    r')',
+    re.I,
+)
 
 def has(patterns,s): return any(re.search(p,s,re.I) for p in patterns)
 def has_auth_guard_before(source, offset, helper_guards):
@@ -143,8 +159,8 @@ def _analyze_source(path, src):
         m=re.search(r'\bvalid_until\b',b,re.I)
         if m and not re.search(r'\b(now|timestamp|block_time|cur_lt)\b',b,re.I):
             add('TON-TIME-001','Expiry field without visible time comparison','MEDIUM','LOW',f.name,f.body_start+m.start(),b[max(0,m.start()-80):m.end()+120],'valid_until appears without a recognizable current-time comparison in this function.','A helper or language-specific time API may implement the check.')
-        m=re.search(r'\bseqno\b',b,re.I)
-        if m and not re.search(r'(seqno\s*==|==\s*seqno|seqno\s*\+|seqno\s*!=)',b,re.I):
+        m=re.search(r'\b(?:msg_|stored_)?seqno\b',b,re.I)
+        if m and not SEQNO_VALIDATE.search(b):
             add('TON-REPLAY-002','Sequence counter without visible validation/update','LOW','LOW',f.name,f.body_start+m.start(),b[max(0,m.start()-70):m.end()+120],'seqno appears without a recognizable comparison or increment in this function.','State validation may be delegated or expressed indirectly.')
         if has([r'\b(extension|plugin|add_extension|remove_extension|install_extension)\b'],b):
             for m in sends:
