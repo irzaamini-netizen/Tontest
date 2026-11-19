@@ -11,12 +11,12 @@ def _analyze_file(file_path, relative, skipped):
 
     if suffix not in EXTS:
         skipped["unsupported"] += 1
-        return None, []
+        return None, [], []
 
     try:
         if file_path.stat().st_size > 2 * 1024 * 1024:
             skipped["too_large"] += 1
-            return None, []
+            return None, [], []
 
         raw = file_path.read_bytes()
         decode_error = False
@@ -34,6 +34,8 @@ def _analyze_file(file_path, relative, skipped):
             if suffix in {".fc", ".func"}
             else "tolk_structural"
             if suffix == ".tolk"
+            else "tact_structural"
+            if suffix == ".tact"
             else "legacy_heuristic"
         )
 
@@ -78,11 +80,11 @@ def _analyze_file(file_path, relative, skipped):
             "analysis_notes": notes,
             "diagnostics": diagnostics,
         }
-        return record, file_findings
+        return record, file_findings, functions
 
     except OSError:
         skipped["unreadable"] += 1
-        return None, []
+        return None, [], []
 
 
 def scan_project(root, exclude_roots=None):
@@ -108,11 +110,15 @@ def scan_project(root, exclude_roots=None):
         "unreadable": 0,
     }
 
+    project_functions = []  # list of (file_path, Function)
+
     if rp.is_file():
-        record, file_findings = _analyze_file(rp, rp.name, skipped)
+        record, file_findings, functions = _analyze_file(rp, rp.name, skipped)
         if record is not None:
             records.append(record)
             findings.extend(file_findings)
+            for fn in functions:
+                project_functions.append((rp.name, fn))
         target = str(rp)
     elif rp.is_dir():
         for base, dirs, names in os.walk(rp):
@@ -126,13 +132,41 @@ def scan_project(root, exclude_roots=None):
             for name in sorted(names):
                 file_path = Path(base) / name
                 relative = str(file_path.relative_to(rp))
-                record, file_findings = _analyze_file(file_path, relative, skipped)
+                record, file_findings, functions = _analyze_file(file_path, relative, skipped)
                 if record is not None:
                     records.append(record)
                     findings.extend(file_findings)
+                    for fn in functions:
+                        project_functions.append((relative, fn))
         target = str(rp)
     else:
         raise ValueError(f"Not a directory or file: {rp}")
+
+    # Lightweight same-project interprocedural AUTH: drop helper findings when every
+    # call site across analyzed files is locally guarded before the call.
+    from .engine import has_auth_guard_before
+    import re
+
+    def project_callers_guarded(callee_name):
+        call_re = re.compile(r"\b" + re.escape(callee_name) + r"\s*\(")
+        sites = 0
+        for _path, caller in project_functions:
+            if caller.name == callee_name:
+                continue
+            for match in call_re.finditer(caller.text):
+                sites += 1
+                if not has_auth_guard_before(caller.text, match.start(), {}):
+                    return False
+        return sites > 0
+
+    if project_functions:
+        findings = [
+            f for f in findings
+            if not (
+                f.get("rule_id") == "TON-AUTH-001"
+                and project_callers_guarded(f.get("function") or "")
+            )
+        ]
 
     all_diagnostics = [
         item
@@ -170,7 +204,7 @@ def scan_project(root, exclude_roots=None):
                 },
                 {
                     "name": "interprocedural_analysis",
-                    "status": "NOT_IMPLEMENTED",
+                    "status": "PARTIAL_SAME_PROJECT_CALLERS",
                 },
                 {
                     "name": "control_flow_analysis",
@@ -236,8 +270,9 @@ def scan_project(root, exclude_roots=None):
             ],
             "limitations": [
                 "FunC parser is an initial structural parser, not compiler-grade.",
-                "Tact currently uses legacy heuristic extraction. Tolk uses an initial structural parser and is not yet compiler-grade.",
-                "No interprocedural call graph or semantic type resolution.",
+                "Tact uses an initial structural parser (fun/get/receive); not compiler-grade.",
+                "Tolk uses an initial structural parser and is not yet compiler-grade.",
+                "Interprocedural analysis is limited to same-project caller AUTH guards.",
                 "No control-flow or state/dataflow analysis.",
                 "No TVM bytecode analysis.",
                 "Security rules are heuristic and do not prove exploitability.",
