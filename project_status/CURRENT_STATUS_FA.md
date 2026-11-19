@@ -1,28 +1,18 @@
 # وضعیت فعلی پروژه
 
 آخرین به‌روزرسانی: 2026-11-19
-شاخه: grok-benchmark-engine
 
-## سه پیشنهاد تکمیل‌شده
-1. **Baseline آرشیوی:** اسکریپت `tonsec_v020/scripts/run_baseline_archive.sh` + اعداد sandbox زیر
-2. **گسترش شاهد vesting/telemint:** `equal_slices(sender, owner|vesting_sender)` به‌عنوان guard
-3. **Tact structural parser:** `tonsec/tact_parser.py` (fun / get fun / receive) و اتصال به engine
+## فاز ۱: تکمیل‌شده
+جزئیات: `PHASE1_COMPLETE_FA.md`
 
-## اعداد پس از equal_slices
-| هدف | یافته | AUTH | diag |
-|---|---:|---:|---:|
-| wallet | 4 | 4 | 0 |
-| token | 6 | 5 | 0 |
-| tolk-bench | 6 | 2 | 0 |
-| جمع | 16 | 11 | 0 |
+## اعداد
+جمع یافته روی سه هدف پین: **13** (diagnostic **0**)
 
-### نسبت به قبل از این دور
-- token: 10 → 6
-- tolk-bench: 9 → 6 (vesting AUTH حذف شد)
-- AUTH کل: 18 → 11
+## آخرین اصلاحات
+- slice_data_equal?(s_addr, wallet|beneficiary)
+- skip AUTH برای send_royalty_params (پاسخ عمومی royalty)
+- tact: external + receive + fun + get fun
+- interprocedural جزئی same-project callers
 
-## AUTH باقی‌مانده
-- wallet subscription plugin (4)
-- discovery / minter-ICO / royalty / nft-item-draft send_msg
-- telemint send_msg helper
-- nft-collection royalty
+## فاز ۲ (باز — خارج از محدوده فاز ۱)
+CFG، dataflow، TVM، مقیاس سازمانی، Tact کامل

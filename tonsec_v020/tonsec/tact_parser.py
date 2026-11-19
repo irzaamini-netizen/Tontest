@@ -54,8 +54,9 @@ def parse_tact(source):
         is_get = value == "get" and i + 1 < n and _v(tokens[i + 1]) == "fun"
         is_fun = value == "fun"
         is_receive = value == "receive"
+        is_external = value == "external"
 
-        if not (is_get or is_fun or is_receive):
+        if not (is_get or is_fun or is_receive or is_external):
             i += 1
             continue
 
@@ -64,6 +65,10 @@ def parse_tact(source):
             name_idx = i + 2
         elif is_receive:
             name = "receive"
+            paren = i + 1
+            name_idx = None
+        elif is_external:
+            name = "external"
             paren = i + 1
             name_idx = None
         else:
