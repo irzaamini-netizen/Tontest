@@ -174,12 +174,14 @@ def _analyze_source(path, src):
                 )
         if has(SIG,b) and not has(REPLAY,b):
             m=re.search(SIG[0],b,re.I); add('TON-REPLAY-001','Signature handling without visible replay-domain control','MEDIUM','LOW',f.name,f.body_start+(m.start() if m else 0),b[:240],'Signature-related logic appears without seqno/nonce/query_id/valid_until markers in this function.','Replay protection may be in a helper or signed payload; this is not proof of replayability.')
-        m=re.search(r'\bvalid_until\b',b,re.I)
+        m=re.search(r'(?<![.:])\bvalid_until\b',b,re.I)
         if m and not re.search(r'\b(now|timestamp|block_time|cur_lt)\b',b,re.I):
             add('TON-TIME-001','Expiry field without visible time comparison','MEDIUM','LOW',f.name,f.body_start+m.start(),b[max(0,m.start()-80):m.end()+120],'valid_until appears without a recognizable current-time comparison in this function.','A helper or language-specific time API may implement the check.')
-        m=re.search(r'\b(?:msg_|stored_)?seqno\b',b,re.I)
+        m=re.search(r'(?<![.:])\b(?:msg_|stored_)?seqno\b',b,re.I)
         if m and not SEQNO_VALIDATE.search(b):
-            add('TON-REPLAY-002','Sequence counter without visible validation/update','LOW','LOW',f.name,f.body_start+m.start(),b[max(0,m.start()-70):m.end()+120],'seqno appears without a recognizable comparison or increment in this function.','State validation may be delegated or expressed indirectly.')
+            # Skip pure getters / size constants without mutation or signature path.
+            if has(SIG,b) or has(SEND,b) or re.search(r'\b(set_data|throw_if|throw_unless|assert)\b',b,re.I):
+                add('TON-REPLAY-002','Sequence counter without visible validation/update','LOW','LOW',f.name,f.body_start+m.start(),b[max(0,m.start()-70):m.end()+120],'seqno appears without a recognizable comparison or increment in this function.','State validation may be delegated or expressed indirectly.')
         if has([r'\b(extension|plugin|add_extension|remove_extension|install_extension)\b'],b):
             for m in sends:
                 prefix = b[:m.start()]
