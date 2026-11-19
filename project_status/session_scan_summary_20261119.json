@@ -1,0 +1,68 @@
+{
+  "wallet-contract": {
+    "target": "wallet-contract@68b56dc0f7f6a9d41a190a4c91f6dc68b18f0600",
+    "engine_version": "0.2.0",
+    "summary": {
+      "files_analyzed": 3,
+      "files_complete": 3,
+      "files_partial": 0,
+      "functions_extracted": 17,
+      "findings_total": 4,
+      "files_with_diagnostics": 0,
+      "diagnostics_total": 0,
+      "by_severity": {"CRITICAL": 0, "HIGH": 4, "MEDIUM": 0, "LOW": 0, "INFO": 0}
+    },
+    "findings": [
+      {"rule_id": "TON-AUTH-001", "file": "func/simple-subscription-plugin.fc", "line": 67, "function": "forward_funds", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "func/simple-subscription-plugin.fc", "line": 80, "function": "forward_funds", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "func/simple-subscription-plugin.fc", "line": 95, "function": "request_payment", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "func/simple-subscription-plugin.fc", "line": 109, "function": "self_destruct", "severity": "HIGH", "confidence": "MEDIUM"}
+    ],
+    "partial_files": []
+  },
+  "token-contract": {
+    "target": "token-contract@1182ad99413242f09925d50e70ccb7e0e09f94d4",
+    "engine_version": "0.2.0",
+    "summary": {
+      "files_analyzed": 31,
+      "files_complete": 19,
+      "files_partial": 12,
+      "functions_extracted": 88,
+      "findings_total": 15,
+      "files_with_diagnostics": 0,
+      "diagnostics_total": 0,
+      "by_severity": {"CRITICAL": 0, "HIGH": 14, "MEDIUM": 0, "LOW": 0, "INFO": 1}
+    },
+    "findings": [
+      {"rule_id": "TON-AUTH-001", "file": "ft/jetton-discovery.fc", "line": 65, "function": "recv_internal", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "ft/jetton-minter-ICO.fc", "line": 36, "function": "mint_tokens", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "ft/jetton-minter-discoverable.fc", "line": 40, "function": "mint_tokens", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "ft/jetton-minter.fc", "line": 39, "function": "mint_tokens", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "nft/nft-collection-editable.fc", "line": 55, "function": "deploy_nft_item", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "nft/nft-collection-editable.fc", "line": 67, "function": "send_royalty_params", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "nft/nft-collection.fc", "line": 55, "function": "deploy_nft_item", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "nft/nft-collection.fc", "line": 67, "function": "send_royalty_params", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "nft/nft-item-editable-DRAFT.fc", "line": 64, "function": "send_msg", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "nft/nft-item.fc", "line": 62, "function": "send_msg", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "nft/nft-sale.fc", "line": 47, "function": "buy", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "nft/nft-sale.fc", "line": 56, "function": "buy", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "nft/nft-sale.fc", "line": 65, "function": "buy", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-AUTH-001", "file": "nft/nft-sale.fc", "line": 81, "function": "buy", "severity": "HIGH", "confidence": "MEDIUM"},
+      {"rule_id": "TON-ASSET-002", "file": "nft/op-codes.fc", "line": 1, "function": "<file>", "severity": "INFO", "confidence": "HIGH"}
+    ],
+    "partial_files": [
+      {"path": "jest.config.js", "parser": "legacy_heuristic"},
+      {"path": "sandbox_tests/JettonWallet.spec.ts", "parser": "legacy_heuristic"},
+      {"path": "sandbox_tests/utils.ts", "parser": "legacy_heuristic"},
+      {"path": "scripts/deployJettonMinter.ts", "parser": "legacy_heuristic"},
+      {"path": "scripts/deployJettonWallet.ts", "parser": "legacy_heuristic"},
+      {"path": "scripts/minterController.ts", "parser": "legacy_heuristic"},
+      {"path": "wrappers/JettonConstants.ts", "parser": "legacy_heuristic"},
+      {"path": "wrappers/JettonMinter.compile.ts", "parser": "legacy_heuristic"},
+      {"path": "wrappers/JettonMinter.ts", "parser": "legacy_heuristic"},
+      {"path": "wrappers/JettonWallet.compile.ts", "parser": "legacy_heuristic"},
+      {"path": "wrappers/JettonWallet.ts", "parser": "legacy_heuristic"},
+      {"path": "wrappers/ui-utils.ts", "parser": "legacy_heuristic"}
+    ]
+  }
+}
