@@ -139,5 +139,225 @@ class FuncLexerRegressionTests(unittest.TestCase):
     def test_func_nested_block_comment(self):
         values, diagnostics, _ = self.values(
             "{- outer {- inner -} tail -} int x = 1;",
-_FUNC,
+            Language.FUNC,
         )
+        self.assertEqual(values, ["int", "x", "=", "1", ";", ""])
+        self.assertEqual(diagnostics, [])
+
+    def test_func_line_comment_inside_block_comment(self):
+        values, diagnostics, _ = self.values(
+            "{- outer ;; ignored -}\nstill comment -} int x = 1;",
+            Language.FUNC,
+        )
+        self.assertEqual(values, ["int", "x", "=", "1", ";", ""])
+        self.assertEqual(diagnostics, [])
+
+    def test_func_unterminated_nested_comment(self):
+        _, diagnostics, _ = self.values(
+            "{- outer {- inner -}",
+            Language.FUNC,
+        )
+        self.assertTrue(any(d.code == "LEX001" for d in diagnostics))
+
+    def test_func_operator_longest_match(self):
+        _, diagnostics, tokens = self.values(
+            "int x = a ^/= b;",
+            Language.FUNC,
+        )
+        self.assertEqual(diagnostics, [])
+        self.assertIn("^/=", [t.value for t in tokens])
+
+    def test_func_standalone_underscore_is_reserved(self):
+        _, diagnostics, tokens = self.values("_ my_var", Language.FUNC)
+        self.assertEqual(diagnostics, [])
+        meaningful = [t for t in tokens if t.kind != TokenKind.EOF]
+        self.assertEqual(meaningful[0].value, "_")
+        self.assertEqual(meaningful[0].kind, TokenKind.KEYWORD)
+        self.assertEqual(meaningful[1].kind, TokenKind.IDENTIFIER)
+        self.assertEqual(meaningful[1].value, "my_var")
+
+    def test_func_include_is_single_keyword_token(self):
+        tokens, diagnostics = lex(
+            '#include "stdlib.fc"\nint x = 1;',
+            Language.FUNC,
+        )
+        meaningful = [t for t in tokens if t.kind != TokenKind.EOF]
+
+        self.assertEqual(meaningful[0].value, "#include")
+        self.assertEqual(meaningful[0].kind, TokenKind.KEYWORD)
+        self.assertEqual(meaningful[1].kind, TokenKind.STRING)
+        self.assertEqual(meaningful[1].value, '"stdlib.fc"')
+        self.assertEqual(diagnostics, [])
+
+    def test_func_pragma_is_single_keyword_token(self):
+        tokens, diagnostics = lex(
+            "#pragma version = 0.4.4",
+            Language.FUNC,
+        )
+        meaningful = [t for t in tokens if t.kind != TokenKind.EOF]
+
+        self.assertEqual(meaningful[0].value, "#pragma")
+        self.assertEqual(meaningful[0].kind, TokenKind.KEYWORD)
+        self.assertEqual(diagnostics, [])
+
+    def test_func_pragma_version_is_single_number_token(self):
+        tokens, diagnostics = lex(
+            "#pragma version = 0.4.4",
+            Language.FUNC,
+        )
+        meaningful = [t for t in tokens if t.kind != TokenKind.EOF]
+
+        self.assertEqual(
+            [t.value for t in meaningful],
+            ["#pragma", "version", "=", "0.4.4"],
+        )
+        self.assertEqual(meaningful[-1].kind, TokenKind.NUMBER)
+        self.assertEqual(diagnostics, [])
+
+    def test_func_dotted_number_outside_pragma_is_not_version_token(self):
+        tokens, diagnostics = lex("int x = 0.4.4;", Language.FUNC)
+        meaningful = [t for t in tokens if t.kind != TokenKind.EOF]
+
+        self.assertEqual(
+            [t.value for t in meaningful],
+            ["int", "x", "=", "0.4", ".", "4", ";"],
+        )
+        # '.' is a FunC operator (method-call / field access), not UNKNOWN.
+        self.assertEqual(meaningful[4].kind, TokenKind.OPERATOR)
+        self.assertEqual(diagnostics, [])
+
+    def test_func_directive_prefix_is_not_misclassified(self):
+        tokens, diagnostics = lex(
+            "#included",
+            Language.FUNC,
+        )
+        meaningful = [t for t in tokens if t.kind != TokenKind.EOF]
+
+        self.assertEqual(
+            [t.value for t in meaningful],
+            ["#", "included"],
+        )
+        self.assertEqual(meaningful[0].kind, TokenKind.UNKNOWN)
+        self.assertEqual(meaningful[1].kind, TokenKind.IDENTIFIER)
+        self.assertEqual(
+            [d.code for d in diagnostics],
+            ["LEX003"],
+        )
+
+    def test_tolk_hash_directive_behavior_unchanged(self):
+        tokens, diagnostics = lex(
+            '#include "stdlib.fc"',
+            Language.TOLK,
+        )
+        meaningful = [t for t in tokens if t.kind != TokenKind.EOF]
+
+        self.assertEqual(
+            [t.value for t in meaningful],
+            ["#", "include", '"stdlib.fc"'],
+        )
+        self.assertEqual(diagnostics, [])
+
+    def test_tolk_c_style_comments_unchanged(self):
+        values, diagnostics, _ = self.values(
+            "/* comment */ fun test() {} // end",
+            Language.TOLK,
+        )
+        self.assertEqual(values, ["fun", "test", "(", ")", "{", "}", ""])
+        self.assertEqual(diagnostics, [])
+
+    def test_tact_c_style_comments_unchanged(self):
+        values, diagnostics, _ = self.values(
+            "/* comment */ contract Test {} // end",
+            Language.TACT,
+        )
+        self.assertEqual(values, ["contract", "Test", "{", "}", ""])
+        self.assertEqual(diagnostics, [])
+
+
+class LanguageSpecificOperatorTests(unittest.TestCase):
+    def tokens(self, source, language):
+        tokens, diagnostics = lex(source, language)
+        return [
+            token for token in tokens
+            if token.kind != TokenKind.EOF
+        ], diagnostics
+
+    def test_func_operators_are_language_specific(self):
+        source = "<=> ~>>= ^>>= ^/= ~/= ~%= ^%= <<= >>= ->"
+        tokens, diagnostics = self.tokens(source, Language.FUNC)
+
+        self.assertEqual(
+            [token.value for token in tokens],
+            source.split(),
+        )
+        self.assertTrue(
+            all(token.kind == TokenKind.OPERATOR for token in tokens)
+        )
+        self.assertEqual(diagnostics, [])
+
+    def test_func_hash_is_not_a_standalone_operator(self):
+        tokens, diagnostics = self.tokens("#", Language.FUNC)
+
+        self.assertEqual(len(tokens), 1)
+        self.assertEqual(tokens[0].kind, TokenKind.UNKNOWN)
+        self.assertEqual([d.code for d in diagnostics], ["LEX003"])
+
+    def test_tolk_specific_operators(self):
+        source = "?? => -> @ ~>> ^/ <<= >>= !"
+        tokens, diagnostics = self.tokens(source, Language.TOLK)
+
+        self.assertEqual(
+            [token.value for token in tokens],
+            source.split(),
+        )
+        self.assertEqual(diagnostics, [])
+
+    def test_tolk_does_not_merge_unsupported_composites(self):
+        tokens, diagnostics = self.tokens("** ++ :: ?.", Language.TOLK)
+
+        values = [token.value for token in tokens]
+        self.assertNotIn("**", values)
+        self.assertNotIn("++", values)
+        self.assertNotIn("::", values)
+        self.assertNotIn("?.", values)
+        self.assertEqual(diagnostics, [])
+
+    def test_tact_specific_operators(self):
+        source = "=> !! ||= &&= @ ."
+        tokens, diagnostics = self.tokens(source, Language.TACT)
+
+        self.assertEqual(
+            [token.value for token in tokens],
+            source.split(),
+        )
+        self.assertEqual(diagnostics, [])
+
+    def test_tact_rejects_bare_hash(self):
+        tokens, diagnostics = self.tokens("#", Language.TACT)
+
+        self.assertEqual(len(tokens), 1)
+        self.assertEqual(tokens[0].kind, TokenKind.UNKNOWN)
+        self.assertEqual([d.code for d in diagnostics], ["LEX003"])
+
+    def test_tact_does_not_merge_unsupported_composites(self):
+        tokens, diagnostics = self.tokens("?? -> ** ++ :: ?.", Language.TACT)
+
+        values = [token.value for token in tokens]
+        for unsupported in ("??", "->", "**", "++", "::", "?."):
+            self.assertNotIn(unsupported, values)
+
+        self.assertEqual(diagnostics, [])
+
+    def test_unknown_language_keeps_legacy_operator_table(self):
+        source = "?? ** ++ :: && => !!"
+        tokens, diagnostics = self.tokens(source, Language.UNKNOWN)
+
+        self.assertEqual(
+            [token.value for token in tokens],
+            ["??", "**", "++", "::", "&&", "=>", "!", "!"],
+        )
+        self.assertEqual(diagnostics, [])
+
+
+if __name__ == "__main__":
+    unittest.main()
