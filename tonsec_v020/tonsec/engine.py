@@ -9,10 +9,10 @@ EXTS={'.fc','.func','.tolk','.tact','.ts','.js','.py','.txt'}
 SKIP={'.git','.venv','venv','node_modules','__pycache__','dist','build'}
 SEND=[r'\bsend_raw_message\s*\(',r'\braw_reserve\s*\(',r'\bsend\s*\(']
 AUTH_GUARD_IDENTITY = [
-    r'\b(sender|msg_sender|context\.sender|sender_address)\b'
+    r'\b(sender|msg_sender|context\.sender|sender_address|senderAddress|msgSender)\b'
 ]
 AUTH_GUARD_ROLE = [
-    r'\b((?:nft_)?owner|admin|authorized|is_authorized|role|jetton_master|minter|marketplace|collection)(?:_[A-Za-z0-9_]+)?\b'
+    r'\b((?:nft_)?owner|admin|authorized|is_authorized|role|jetton_master|minter|marketplace|collection)(?:Address|_address)?\b'
 ]
 AUTH_GUARD_FUNCTION = [
     r'\b(check_signature|verify_signature|is_authorized|is_owner|only_owner|only_admin)\s*\('
@@ -20,6 +20,8 @@ AUTH_GUARD_FUNCTION = [
 AUTH_GUARD_WALLET_PROOF = [
     r'\bcalculate_user_jetton_wallet_address\s*\(',
     r'\bcalculate_jetton_wallet_address\s*\(',
+    r'\bcalcAddressOfJettonWallet\s*\(',
+    r'\bcalcDeployedJettonWallet\s*\(',
 ]
 
 def has_auth_guard(source):
