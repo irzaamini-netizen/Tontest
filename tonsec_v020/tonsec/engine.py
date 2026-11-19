@@ -4,6 +4,7 @@ from datetime import datetime,timezone
 from .parser import Function, extract_functions, line_at
 from .func_parser import parse_func
 from .tolk_parser import parse_tolk
+from .tact_parser import parse_tact
 
 EXTS={'.fc','.func','.tolk','.tact','.ts','.js','.py','.txt'}
 SKIP={'.git','.venv','venv','node_modules','__pycache__','dist','build'}
@@ -12,7 +13,7 @@ AUTH_GUARD_IDENTITY = [
     r'\b(sender|msg_sender|context\.sender|sender_address|senderAddress|msgSender)\b'
 ]
 AUTH_GUARD_ROLE = [
-    r'\b((?:nft_)?owner|admin|authorized|is_authorized|role|jetton_master|minter|marketplace|collection)(?:Address|_address)?\b'
+    r'\b((?:nft_)?owner|admin|authorized|is_authorized|role|jetton_master|minter|marketplace|collection|vesting_sender)(?:Address|_address)?\b'
 ]
 AUTH_GUARD_FUNCTION = [
     r'\b(check_signature|verify_signature|is_authorized|is_owner|only_owner|only_admin)\s*\('
@@ -37,6 +38,13 @@ def has_auth_guard(source):
         if has(AUTH_GUARD_IDENTITY, expr) and has(AUTH_GUARD_WALLET_PROOF, expr):
             return True
         if has(AUTH_GUARD_FUNCTION, expr):
+            return True
+    # FunC style: equal_slices(sender_address, owner_address)
+    for match in re.finditer(r'\bequal_slices(?:_bits)?\s*\(([^)]*)\)', source, re.I):
+        expr = match.group(1)
+        if has(AUTH_GUARD_IDENTITY, expr) and has(AUTH_GUARD_ROLE, expr):
+            return True
+        if has(AUTH_GUARD_IDENTITY, expr) and has(AUTH_GUARD_WALLET_PROOF, expr):
             return True
     return False
 
@@ -150,8 +158,13 @@ def _analyze_source(path, src):
     suffix = Path(path).suffix.lower()
     diagnostics = []
 
-    if suffix in {".fc", ".func", ".tolk"}:
-        module = parse_func(src) if suffix in {".fc", ".func"} else parse_tolk(src)
+    if suffix in {".fc", ".func", ".tolk", ".tact"}:
+        if suffix in {".fc", ".func"}:
+            module = parse_func(src)
+        elif suffix == ".tolk":
+            module = parse_tolk(src)
+        else:
+            module = parse_tact(src)
         funcs = _functions_from_module(src, module)
         diagnostics = [_diagnostic_record(d) for d in module.diagnostics]
     else:
