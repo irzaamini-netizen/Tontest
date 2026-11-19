@@ -135,7 +135,7 @@ def _analyze_source(path, src):
         summaries = []
         for helper in definitions:
             helper_sends = sorted(
-                [m for pattern in SEND for for m in re.finditer(pattern, helper.text, re.I)],
+                [m for pattern in SEND for m in re.finditer(pattern, helper.text, re.I)],
                 key=lambda m: m.start()
             )
             if helper_sends:
