@@ -1,8 +1,8 @@
 # مأموریت و نقشه‌راه اصلی TON Security Engine
 
-آخرین به‌روزرسانی: 2026-11-15
+آخرین به‌روزرسانی: 2026-11-19
 نسخه پروژه: 0.2.0
-وضعیت: توسعه فعال؛ آماده‌سازی برای آزمون واقعی گسترده
+وضعیت: توسعه فعال؛ اصلاح AUTH مبتنی بر شاهد انجام شد؛ baseline گسترده هنوز در اولویت است
 
 ---
 
@@ -81,8 +81,8 @@ TON Security Engine باید به یک موتور مستقل، خودکار و �
 
 ## 5. وضعیت فنی ثبت‌شده
 
-مسیر پروژه:
-$HOME/tonsec-0.2.0/tonsec_v020
+مسیر پروژه (Termux):
+/data/data/com.termux/files/home/tonsec-upgrade01-independent-audit/repository/tonsec_v020
 
 نسخه:
 0.2.0
@@ -90,34 +90,25 @@ $HOME/tonsec-0.2.0/tonsec_v020
 ### مراحل انجام‌شده
 
 - مدل نحوی مشترک اولیه ایجاد شده است.
-- Lexer اولیه برای FunC، Tolk، Tact و UNKNOWN وجود دارد.
+- Lexer اولیه برای FunC، Tolk، Tact و UNKNOWN وجود دارد؛ نقطه در شناسه FunC پشتیبانی می‌شود.
 - Parser ساختاری اولیه FunC ایجاد شده است.
-- Parser قدیمی مبتنی بر heuristic همچنان برای زبان‌های دیگر استفاده می‌شود.
-- قواعد امنیتی اولیه TON پیاده‌سازی شده‌اند.
+- Parser Tolk بدنه asm را می‌پذیرد.
+- قواعد امنیتی اولیه TON پیاده‌سازی شده‌اند؛ AUTH نقش با پسوند (_address و مشابه) را می‌شناسد.
 - Pipeline مرکزی در فایل tonsec/pipeline.py ایجاد شده است.
 - engine.scan به Pipeline مرکزی متصل شده است.
 - گزارش JSON و Markdown تولید می‌شود.
-- پشتیبان پیش از اتصال Pipeline ایجاد و پیش از تغییر تأیید شده است.
-- قابلیت batch و orchestrator (`tonsec batch` / `tonsec run`) برای کشف پروژه و گزارش تجمیعی اضافه شده است.
+- قابلیت batch و orchestrator برای کشف پروژه و گزارش تجمیعی اضافه شده است.
 - مجموعه داده اولیه پروژه‌های واقعی تعریف و گسترش یافته است.
 - ابزار آماده‌سازی دیتاست و اجرای baseline بهبود یافته است.
-
-مسیر پشتیبان:
-$HOME/tonsec-backup-integration-20261104-234409
 
 ### نتایج تأییدشده
 
 آزمون end-to-end روی fixtures:
-- JSON_REPORT: OK
-- MARKDOWN_REPORT: OK
-- FILES_ANALYZED: 2
-- FUNCTIONS_EXTRACTED: 2
-- FINDINGS: 1
-- FILES_PARTIAL: 2
-- INPUT_FILES_UNCHANGED: OK
 - END_TO_END_SMOKE_TEST: PASS
 
-این آزمون فقط صحت اجرای Pipeline روی دو Fixture را اثبات می‌کند و اثبات‌کننده آمادگی محصول برای ممیزی گسترده نیست.
+شاهد AUTH روی jetton-wallet.fc پس از اصلاح پسوند نقش:
+- AUTH-001 = 0 روی send_tokens / burn_tokens / receive_tokens → PASS
+- گزارش: benchmark/reports/AUTH_PROGRESS_20261119_FA.md
 
 ### محدودیت‌های فعلی
 
@@ -128,75 +119,52 @@ $HOME/tonsec-backup-integration-20261104-234409
 - تحلیل Control Flow پیاده‌سازی نشده است.
 - تحلیل Data Flow پیاده‌سازی نشده است.
 - تحلیل TVM bytecode پیاده‌سازی نشده است.
-- پوشش گسترده پروژه‌های واقعی هنوز آزموده نشده است (baseline کامل اجرا نشده).
+- baseline گسترده روی ۱۴ پروژه هنوز روی ماشین کاربر تکمیل/ارزیابی نهایی نشده است.
 
 ## 6. مراحل باقی‌مانده و اولویت‌ها
 
 ### اولویت 1: آزمون واقعی گسترده  ← در حال اجرا
 
-**انجام‌شده در 2026-11-15:**
-- مجموعه `real_projects.json` از ۳ پروژه به ۱۴ پروژه متنوع گسترش یافت.
-- اسکریپت `benchmark/tools/prepare_dataset.py` اضافه و سپس با `--dry-run` و بررسی خطا بهبود یافت.
-- بکاپ فایل قبلی: `prepare_dataset.py.bak-20261115-052700`
-- اسکریپت کمکی `benchmark/tools/run_baseline.sh` برای اجرای یکپارچه آماده‌سازی + baseline اضافه شد.
-- README بخش benchmark به‌روزرسانی شد.
+**انجام‌شده:**
+- real_projects.json گسترش به ۱۴ پروژه
+- prepare_dataset.py و run_baseline.sh
+- اصلاح lexer نقطه، parser asm، AUTH پسوند نقش (با شاهد)
 
-**اقدام بعدی فوری (روی ماشین کاربر):**
+**اقدام بعدی روی ماشین کاربر (در صورت نیاز صریح):**
 ```bash
-# روش پیشنهادی یک‌فرمان
 bash tonsec_v020/benchmark/tools/run_baseline.sh
-
-# یا مرحله‌ای:
-python3 tonsec_v020/benchmark/tools/prepare_dataset.py \
-  --dataset tonsec_v020/benchmark/datasets/real_projects.json \
-  --outdir ~/tonsec-baseline-projects
-
-tonsec run ~/tonsec-baseline-projects --out ~/tonsec-baseline-report-$(date +%Y%m%d-%H%M%S)
 ```
-
-پس از اجرا، خلاصه `full_report.json` / `full_report.md` را برای ورود به اولویت ۲ ارسال کنید.
 
 ### اولویت 2: ارزیابی نتایج
 
-- شناسایی مثبت کاذب.
-- شناسایی منفی کاذب.
-- بررسی یافته‌های درست و شواهد آن‌ها.
-- ثبت خطاهای Parser و فایل‌های ازدست‌رفته.
-- اندازه‌گیری پوشش واقعی و زمان اجرا.
+- شناسایی مثبت کاذب و منفی کاذب با شاهد فایل
+- ثبت خطاهای Parser و فایل‌های ازدست‌رفته
+- اندازه‌گیری پوشش واقعی
 
 ### اولویت 3: اصلاح مبتنی بر شواهد
 
-- اولویت‌بندی خطاهای واقعی.
-- اصلاح Parserها در صورت اثبات نیاز.
-- توسعه تحلیل بین‌تابعی در صورت نیاز.
-- توسعه تحلیل جریان کنترل و داده در صورت نیاز.
-- تقویت قواعد امنیتی و کاهش هشدارهای اشتباه.
+- فقط پس از شاهد جدید
+- بدون تکرار اصلاحات بسته‌شده (lexer نقطه، asm body، AUTH پسوند)
 
 ### اولویت 4: اجرای مجدد و مقایسه
 
-- اجرای همان مجموعه آزمون پس از اصلاح.
-- مقایسه نتایج قبل و بعد.
-- سنجش بهبود پوشش و دقت.
-- ثبت خطاهای باقی‌مانده.
+- همان مجموعه پس از اصلاح بعدی
 
 ### اولویت 5: آماده‌سازی محصول عملیاتی
 
-- اجرای batch روی مجموعه بزرگ پروژه‌ها.
-- مدیریت خطا و ادامه اسکن در صورت خرابی یک پروژه.
-- گزارش تجمیعی و قابل جست‌وجو.
-- فرمان اجرایی واحد.
-- کنترل تکرارپذیری و مقیاس‌پذیری.
-- مستندات و تثبیت نسخه عملیاتی.
+- batch پایدار، گزارش تجمیعی، یک فرمان
 
 ## 7. سابقه تغییرات و آزمون‌ها
 
 | تاریخ | مرحله | تغییر یا آزمون | نتیجه | محدودیت یا اقدام بعدی |
 |---|---|---|---|---|
-| 2026-11-04 | Pipeline | اتصال engine.scan به Pipeline مرکزی | موفق | عمق تحلیل همچنان محدود |
-| 2026-11-04 | End-to-end | اجرای دو Fixture و تولید JSON/Markdown | PASS | هر دو فایل PARTIAL |
-| 2026-11-04 | معماری محصول | تثبیت هدف آزمون گسترده پروژه‌های TON | ثبت شد | اجرای baseline واقعی |
-| 2026-11-15 | Dataset P1 | گسترش real_projects.json به ۱۴ پروژه + اسکریپت prepare_dataset | انجام شد | اجرای baseline |
-| 2026-11-15 | Tooling P1 | بهبود prepare_dataset (dry-run) + اضافه شدن run_baseline.sh + بکاپ | انجام شد | اجرای baseline توسط کاربر |
+| 2026-11-04 | Pipeline | اتصال engine.scan به Pipeline مرکزی | موفق | عمق تحلیل محدود |
+| 2026-11-04 | End-to-end | دو Fixture | PASS | PARTIAL |
+| 2026-11-15 | Dataset P1 | ۱۴ پروژه + prepare_dataset | انجام شد | baseline |
+| 2026-11-16 | Lexer | نقطه در FunC | unrecognized 1195→0 | — |
+| 2026-11-17 | Tolk parser | بدنه asm | diagnostic 0؛ یافته 113 | JS/TS ناقص |
+| 2026-11-19 | AUTH | پسوند نقش owner_address / jetton_master | AUTH-001=0 روی jetton-wallet | شاهد محدود به یک فایل |
+| 2026-11-19 | Docs | AUTH_PROGRESS_20261119_FA.md + بازگردانی engine کامل | ثبت شد | شاهد جدید برای قاعده دیگر |
 
 ## 8. معیار موفقیت نهایی
 
