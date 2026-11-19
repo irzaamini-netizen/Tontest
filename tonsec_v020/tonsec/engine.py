@@ -17,6 +17,10 @@ AUTH_GUARD_ROLE = [
 AUTH_GUARD_FUNCTION = [
     r'\b(check_signature|verify_signature|is_authorized|is_owner|only_owner|only_admin)\s*\('
 ]
+AUTH_GUARD_WALLET_PROOF = [
+    r'\bcalculate_user_jetton_wallet_address\s*\(',
+    r'\bcalculate_jetton_wallet_address\s*\(',
+]
 
 def has_auth_guard(source):
     guards = re.finditer(
@@ -27,6 +31,8 @@ def has_auth_guard(source):
     for match in guards:
         expr = match.group(1)
         if has(AUTH_GUARD_IDENTITY, expr) and has(AUTH_GUARD_ROLE, expr):
+            return True
+        if has(AUTH_GUARD_IDENTITY, expr) and has(AUTH_GUARD_WALLET_PROOF, expr):
             return True
         if has(AUTH_GUARD_FUNCTION, expr):
             return True
